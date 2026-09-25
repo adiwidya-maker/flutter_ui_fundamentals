@@ -1,0 +1,38 @@
+{
+  "student": {
+    "nim": "2415051001",
+    "name": "I Gede Adiwidya Utama"
+  },
+  "courses": [
+    {
+      "code": "MOB01",
+      "title": "Text Widget",
+      "credits": 2,
+      "status": "done"
+    },
+    {
+      "code": "MOB02",
+      "title": "Icon Widget",
+      "credits": 2,
+      "status": "done"
+    },
+    {
+      "code": "MOB03",
+      "title": "Row dan Column",
+      "credits": 2,
+      "status": "done"
+    },
+    {
+      "code": "MOB04",
+      "title": "Container dan Card",
+      "credits": 2,
+      "status": "pending"
+    },
+    {
+      "code": "MOB05",
+      "title": "Reusable Widget",
+      "credits": 2,
+      "status": "pending"
+    }
+  ]
+}
