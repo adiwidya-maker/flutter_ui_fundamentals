@@ -1,11 +1,9 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 const String studentName = 'I Gede Adiwidya Utama';
 const String studentId = '2415051001';
-
 const Color primaryColor = Color(0xFF2563EB);
 const Color pageColor = Color(0xFFF5F7FB);
 const Color textColor = Color(0xFF172033);
@@ -75,14 +73,15 @@ class MyApp extends StatelessWidget {
 }
 
 // ======================================================
-// MAIN PAGE + INTEGRASI MINI PROJECT (STAGE 15)
+// MAIN PAGE
 // ======================================================
 
 class CourseExplorerPage extends StatefulWidget {
   const CourseExplorerPage({super.key});
 
   @override
-  State<CourseExplorerPage> createState() => _CourseExplorerPageState();
+  State<CourseExplorerPage> createState() =>
+      _CourseExplorerPageState();
 }
 
 class _CourseExplorerPageState extends State<CourseExplorerPage> {
@@ -90,19 +89,32 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
 
   int selectedIndex = 0;
 
-  final TextEditingController emailController = TextEditingController();
+  // Local state untuk eksperimen Tahap 1.
+  bool showStudentInfo = false;
 
-  final TextEditingController studyController = TextEditingController(
+  // Shared state Tahap 2: dikelola oleh parent.
+  final Set<String> favorites = <String>{};
+
+  final TextEditingController emailController =
+      TextEditingController();
+
+  final TextEditingController studyController =
+      TextEditingController(
     text: 'Pendidikan Teknik Informatika',
   );
 
-  final TextEditingController addressController = TextEditingController();
+  final TextEditingController addressController =
+      TextEditingController();
 
-  final TextEditingController descriptionController = TextEditingController();
+  final TextEditingController descriptionController =
+      TextEditingController();
 
-  // Form & Feedback State (Stage 13 & 14)
-  final GlobalKey<FormState> formKey = GlobalKey<FormState>();
-  final TextEditingController feedbackController = TextEditingController();
+  final GlobalKey<FormState> formKey =
+      GlobalKey<FormState>();
+
+  final TextEditingController feedbackController =
+      TextEditingController();
+
   bool isLoading = false;
 
   @override
@@ -121,26 +133,42 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
     super.dispose();
   }
 
+  // ====================================================
+  // LOAD JSON DATA
+  // ====================================================
+
   Future<Map<String, dynamic>> loadStudentData() async {
     final String jsonString =
-        await rootBundle.loadString('assets/data/student_data.json');
+        await rootBundle.loadString(
+      'assets/data/student_data.json',
+    );
 
-    return jsonDecode(jsonString) as Map<String, dynamic>;
+    return jsonDecode(jsonString)
+        as Map<String, dynamic>;
   }
 
   List<Map<String, dynamic>> getCourses(
     Map<String, dynamic> data,
   ) {
-    final rawCourses = data['courses'] as List<dynamic>? ?? [];
+    final rawCourses =
+        data['courses'] as List<dynamic>? ?? [];
 
-    return rawCourses.whereType<Map<String, dynamic>>().toList();
+    return rawCourses
+        .whereType<Map<String, dynamic>>()
+        .toList();
   }
 
   int getCompletedCount(
     List<Map<String, dynamic>> courses,
   ) {
-    return courses.where((course) => course['status'] == 'done').length;
+    return courses
+        .where((course) => course['status'] == 'done')
+        .length;
   }
+
+  // ====================================================
+  // SHOW MESSAGE
+  // ====================================================
 
   void showMessage(String message) {
     ScaffoldMessenger.of(context)
@@ -153,30 +181,55 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
       );
   }
 
-  // Passing data & returning result (Stage 8 & 9)
+  // Mengubah favorite dari parent agar semua child konsisten.
+  void toggleFavorite(String code) {
+    final bool wasFavorite = favorites.contains(code);
+
+    setState(() {
+      if (wasFavorite) {
+        favorites.remove(code);
+      } else {
+        favorites.add(code);
+      }
+    });
+
+    showMessage(
+      wasFavorite
+          ? 'Materi dihapus dari favorit.'
+          : 'Materi ditambahkan ke favorit.',
+    );
+  }
+
+  // ====================================================
+  // OPEN COURSE DETAIL
+  // ====================================================
+
   Future<void> openCourse(
     Map<String, dynamic> course,
   ) async {
-    final result = await Navigator.push<bool>(
+    await Navigator.push<void>(
       context,
       MaterialPageRoute(
-        builder: (_) => CourseDetailPage(course: course),
+        builder: (_) => CourseDetailPage(
+          course: course,
+          favorites: favorites,
+          onFavoriteChanged: toggleFavorite,
+        ),
       ),
     );
-
-    if (!mounted) return;
-
-    if (result == true) {
-      showMessage('Materi berhasil ditambahkan ke favorit.');
-    }
   }
 
-  // NavigationBar untuk Compact / Medium layout (Stage 10 & 11)
+  // ====================================================
+  // NAVIGATION BAR
+  // ====================================================
+
   Widget buildNavigationBar() {
     return NavigationBar(
       selectedIndex: selectedIndex,
       onDestinationSelected: (index) {
-        setState(() => selectedIndex = index);
+        setState(() {
+          selectedIndex = index;
+        });
       },
       destinations: const [
         NavigationDestination(
@@ -198,12 +251,17 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
     );
   }
 
-  // NavigationRail untuk Expanded layout (Stage 11)
+  // ====================================================
+  // NAVIGATION RAIL
+  // ====================================================
+
   Widget buildNavigationRail() {
     return NavigationRail(
       selectedIndex: selectedIndex,
       onDestinationSelected: (index) {
-        setState(() => selectedIndex = index);
+        setState(() {
+          selectedIndex = index;
+        });
       },
       labelType: NavigationRailLabelType.all,
       backgroundColor: Colors.white,
@@ -235,14 +293,21 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
     );
   }
 
+  // ====================================================
+  // MAIN BUILD
+  // ====================================================
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<Map<String, dynamic>>(
       future: studentFuture,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState ==
+            ConnectionState.waiting) {
           return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
           );
         }
 
@@ -262,7 +327,9 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                     const SizedBox(height: 12),
                     const Text(
                       'Data pembelajaran gagal dimuat.',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
@@ -296,10 +363,10 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
           buildProfilePage(),
         ];
 
-        // Adaptive Navigation Shell (Stage 11 & 15)
         return LayoutBuilder(
           builder: (context, constraints) {
-            final bool expanded = constraints.maxWidth >= 840;
+            final bool expanded =
+                constraints.maxWidth >= 840;
 
             return Scaffold(
               appBar: AppBar(
@@ -312,7 +379,9 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                     SizedBox(width: 10),
                     Text(
                       'Course Explorer',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
@@ -323,7 +392,9 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                       child: Center(
                         child: Text(
                           'Learning Dashboard',
-                          style: TextStyle(color: mutedColor),
+                          style: TextStyle(
+                            color: mutedColor,
+                          ),
                         ),
                       ),
                     ),
@@ -350,7 +421,8 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                       index: selectedIndex,
                       children: pages,
                     ),
-              bottomNavigationBar: expanded ? null : buildNavigationBar(),
+              bottomNavigationBar:
+                  expanded ? null : buildNavigationBar(),
             );
           },
         );
@@ -370,7 +442,8 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final bool wide = constraints.maxWidth >= 700;
+        final bool wide =
+            constraints.maxWidth >= 700;
 
         final double horizontalPadding =
             constraints.maxWidth >= 1000 ? 36 : 20;
@@ -382,11 +455,167 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
           ),
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1200),
+              constraints: const BoxConstraints(
+                maxWidth: 1200,
+              ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
                 children: [
                   buildWelcomeBanner(),
+                  const SizedBox(height: 24),
+
+                  // ======================================
+                  // EKSPERIMEN LOCAL STATE - TAHAP 1
+                  // ======================================
+
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(
+                                Icons.touch_app_rounded,
+                                color: primaryColor,
+                                size: 28,
+                              ),
+                              SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'Eksperimen Local State',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight:
+                                        FontWeight.bold,
+                                    color: textColor,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Tekan tombol di bawah untuk menampilkan atau menyembunyikan informasi mahasiswa.',
+                            style: TextStyle(
+                              color: mutedColor,
+                              height: 1.5,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton.icon(
+                              onPressed: () {
+                                setState(() {
+                                  showStudentInfo =
+                                      !showStudentInfo;
+                                });
+                              },
+                              icon: Icon(
+                                showStudentInfo
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                              ),
+                              label: Text(
+                                showStudentInfo
+                                    ? 'Sembunyikan Informasi'
+                                    : 'Tampilkan Informasi',
+                              ),
+                            ),
+                          ),
+                          if (showStudentInfo) ...[
+                            const SizedBox(height: 16),
+                            const Divider(),
+                            const SizedBox(height: 8),
+                            const Row(
+                              children: [
+                                Icon(
+                                  Icons.person_outline,
+                                  color: primaryColor,
+                                ),
+                                SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    studentName,
+                                    style: TextStyle(
+                                      fontWeight:
+                                          FontWeight.bold,
+                                      color: textColor,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            const Row(
+                              children: [
+                                Icon(
+                                  Icons.badge_outlined,
+                                  color: primaryColor,
+                                ),
+                                SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'NIM: $studentId',
+                                    style: TextStyle(
+                                      color: mutedColor,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            const Row(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  Icons.school_outlined,
+                                  color: primaryColor,
+                                ),
+                                SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'Program Studi: Pendidikan Teknik Informatika',
+                                    style: TextStyle(
+                                      color: mutedColor,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            const Row(
+                              children: [
+                                Icon(
+                                  Icons.calendar_month_outlined,
+                                  color: primaryColor,
+                                ),
+                                SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'Semester: 4',
+                                    style: TextStyle(
+                                      color: mutedColor,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // ======================================
+                  // AKHIR EKSPERIMEN LOCAL STATE
+                  // ======================================
+
                   const SizedBox(height: 24),
                   const Text(
                     'Ringkasan Pembelajaran',
@@ -482,7 +711,9 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                       ),
                       TextButton(
                         onPressed: () {
-                          setState(() => selectedIndex = 1);
+                          setState(() {
+                            selectedIndex = 1;
+                          });
                         },
                         child: const Text('Lihat semua'),
                       ),
@@ -494,8 +725,12 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                   else
                     ...courses.take(3).map(
                           (course) => Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: buildCourseListTile(course),
+                            padding:
+                                const EdgeInsets.only(
+                              bottom: 12,
+                            ),
+                            child:
+                                buildCourseListTile(course),
                           ),
                         ),
                   const SizedBox(height: 24),
@@ -508,6 +743,10 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
       },
     );
   }
+
+  // ====================================================
+  // WELCOME BANNER
+  // ====================================================
 
   Widget buildWelcomeBanner() {
     return Container(
@@ -526,10 +765,12 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final bool compact = constraints.maxWidth < 500;
+          final bool compact =
+              constraints.maxWidth < 500;
 
           return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
@@ -546,7 +787,8 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                   const SizedBox(width: 16),
                   Expanded(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
                       children: [
                         Text(
                           'Halo, $studentName!',
@@ -576,8 +818,11 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                   vertical: 9,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
+                  color: Colors.white.withValues(
+                    alpha: 0.15,
+                  ),
+                  borderRadius:
+                      BorderRadius.circular(10),
                 ),
                 child: Text(
                   'NIM  $studentId',
@@ -593,6 +838,10 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
       ),
     );
   }
+
+  // ====================================================
+  // STATISTIC CARD
+  // ====================================================
 
   Widget buildStatCard(
     String title,
@@ -611,14 +860,20 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
               height: 48,
               decoration: BoxDecoration(
                 color: iconBackground,
-                borderRadius: BorderRadius.circular(14),
+                borderRadius:
+                    BorderRadius.circular(14),
               ),
-              child: Icon(icon, color: iconColor, size: 25),
+              child: Icon(
+                icon,
+                color: iconColor,
+                size: 25,
+              ),
             ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,
@@ -645,17 +900,25 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
     );
   }
 
+  // ====================================================
+  // STUDENT FOOTER
+  // ====================================================
+
   Widget buildStudentFooter() {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            const Icon(Icons.person_outline, color: primaryColor),
+            const Icon(
+              Icons.person_outline,
+              color: primaryColor,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
                 children: [
                   Text(
                     studentName,
@@ -682,7 +945,7 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
   }
 
   // ====================================================
-  // COURSES PAGE - RESPONSIVE GRID (STAGE 5)
+  // COURSES PAGE
   // ====================================================
 
   Widget buildCoursesPage(
@@ -690,11 +953,12 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
   ) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final int columns = constraints.maxWidth >= 1100
-            ? 3
-            : constraints.maxWidth >= 650
-                ? 2
-                : 1;
+        final int columns =
+            constraints.maxWidth >= 1100
+                ? 3
+                : constraints.maxWidth >= 650
+                    ? 2
+                    : 1;
 
         return SingleChildScrollView(
           padding: EdgeInsets.all(
@@ -702,9 +966,12 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
           ),
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1200),
+              constraints: const BoxConstraints(
+                maxWidth: 1200,
+              ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
                 children: [
                   const Text(
                     'Semua Materi',
@@ -717,7 +984,9 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                   const SizedBox(height: 8),
                   const Text(
                     'Pilih materi untuk melihat detail pembelajaran.',
-                    style: TextStyle(color: mutedColor),
+                    style: TextStyle(
+                      color: mutedColor,
+                    ),
                   ),
                   const SizedBox(height: 22),
                   if (courses.isEmpty)
@@ -725,7 +994,8 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                   else
                     GridView.builder(
                       shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
+                      physics:
+                          const NeverScrollableScrollPhysics(),
                       itemCount: courses.length,
                       gridDelegate:
                           SliverGridDelegateWithFixedCrossAxisCount(
@@ -735,7 +1005,9 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                         mainAxisExtent: 190,
                       ),
                       itemBuilder: (context, index) {
-                        return buildCourseGridCard(courses[index]);
+                        return buildCourseGridCard(
+                          courses[index],
+                        );
                       },
                     ),
                   const SizedBox(height: 24),
@@ -749,139 +1021,44 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
     );
   }
 
+  // ====================================================
+  // COURSE LIST TILE - PROP DRILLING TAHAP 2
+  // ====================================================
+
   Widget buildCourseListTile(
     Map<String, dynamic> course,
   ) {
-    final bool isDone = course['status'] == 'done';
-    bool isFavorite = course['isFavorite'] ?? false;
-
-    return StatefulBuilder(
-      builder: (context, setStateCard) {
-        return Card(
-          child: InkWell(
-            borderRadius: BorderRadius.circular(18),
-            onTap: () => openCourse(course),
-            onLongPress: () {
-              showMessage('Materi: ${course['title']} (${course['code'] ?? '-'})');
-            },
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  buildCourseIcon(isDone),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${course['title'] ?? 'Materi'}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: textColor,
-                            fontSize: 15,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          '${course['code'] ?? '-'} • ${course['credits'] ?? '-'} SKS',
-                          style: const TextStyle(
-                            color: mutedColor,
-                            fontSize: 13,
-                          ),
-                        ),
-                        const SizedBox(height: 9),
-                        buildStatusPill(isDone),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: Icon(
-                      isFavorite ? Icons.favorite : Icons.favorite_border,
-                      color: isFavorite ? Colors.red : mutedColor,
-                    ),
-                    onPressed: () {
-                      setStateCard(() {
-                        isFavorite = !isFavorite;
-                        course['isFavorite'] = isFavorite;
-                      });
-                      showMessage(
-                        isFavorite
-                            ? 'Ditambahkan ke favorit lokal.'
-                            : 'Dihapus dari favorit.',
-                      );
-                    },
-                  ),
-                  const Icon(
-                    Icons.chevron_right,
-                    color: mutedColor,
-                  ),
-                ],
-              ),
-            ),
-          ),
+    return CourseListTileWidget(
+      course: course,
+      favorites: favorites,
+      onFavoriteChanged: toggleFavorite,
+      onTap: () => openCourse(course),
+      onLongPress: () {
+        showMessage(
+          'Materi: ${course['title']} (${course['code'] ?? '-'})',
         );
       },
     );
   }
 
+  // ====================================================
+  // COURSE GRID CARD - PROP DRILLING TAHAP 2
+  // ====================================================
+
   Widget buildCourseGridCard(
     Map<String, dynamic> course,
   ) {
-    final bool isDone = course['status'] == 'done';
-
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => openCourse(course),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              buildCourseIcon(isDone),
-              const SizedBox(width: 13),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${course['title'] ?? 'Materi'}',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Kode: ${course['code'] ?? '-'}',
-                      style: const TextStyle(
-                        color: mutedColor,
-                        fontSize: 12,
-                      ),
-                    ),
-                    Text(
-                      'SKS: ${course['credits'] ?? '-'}',
-                      style: const TextStyle(
-                        color: mutedColor,
-                        fontSize: 12,
-                      ),
-                    ),
-                    const Spacer(),
-                    buildStatusPill(isDone),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    return CourseGridCardWidget(
+      course: course,
+      favorites: favorites,
+      onFavoriteChanged: toggleFavorite,
+      onTap: () => openCourse(course),
     );
   }
+
+  // ====================================================
+  // COURSE ICON
+  // ====================================================
 
   Widget buildCourseIcon(bool isDone) {
     return Container(
@@ -903,6 +1080,10 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
       ),
     );
   }
+
+  // ====================================================
+  // COURSE STATUS PILL
+  // ====================================================
 
   Widget buildStatusPill(bool isDone) {
     final color = isDone
@@ -934,7 +1115,7 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
   }
 
   // ====================================================
-  // PROFILE PAGE - FORM, VALIDATION & DIALOG (STAGE 13 & 14)
+  // PROFILE PAGE
   // ====================================================
 
   Widget buildProfilePage() {
@@ -942,9 +1123,12 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
       padding: const EdgeInsets.all(24),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720),
+          constraints: const BoxConstraints(
+            maxWidth: 720,
+          ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
               const Text(
                 'Profil Mahasiswa',
@@ -984,13 +1168,17 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                       const SizedBox(height: 6),
                       Text(
                         'NIM: $studentId',
-                        style: const TextStyle(color: mutedColor),
+                        style: const TextStyle(
+                          color: mutedColor,
+                        ),
                       ),
                       const SizedBox(height: 6),
                       const Text(
                         'Pendidikan Teknik Informatika',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: mutedColor),
+                        style: TextStyle(
+                          color: mutedColor,
+                        ),
                       ),
                     ],
                   ),
@@ -1003,7 +1191,8 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                   child: Form(
                     key: formKey,
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
                       children: [
                         const Text(
                           'Formulir Feedback & Konfirmasi',
@@ -1019,8 +1208,11 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                         TextFormField(
                           readOnly: true,
                           initialValue: studentName,
-                          decoration: const InputDecoration(
-                            prefixIcon: Icon(Icons.person_outline),
+                          decoration:
+                              const InputDecoration(
+                            prefixIcon: Icon(
+                              Icons.person_outline,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -1029,30 +1221,43 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                         TextFormField(
                           readOnly: true,
                           initialValue: studentId,
-                          decoration: const InputDecoration(
-                            prefixIcon: Icon(Icons.badge_outlined),
+                          decoration:
+                              const InputDecoration(
+                            prefixIcon: Icon(
+                              Icons.badge_outlined,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 16),
-                        const Text('Komentar / Feedback Pembelajaran'),
+                        const Text(
+                          'Komentar / Feedback Pembelajaran',
+                        ),
                         const SizedBox(height: 8),
                         TextFormField(
                           controller: feedbackController,
                           maxLines: 3,
-                          decoration: const InputDecoration(
-                            hintText: 'Tuliskan kesan atau masukan materi...',
+                          decoration:
+                              const InputDecoration(
+                            hintText:
+                                'Tuliskan kesan atau masukan materi...',
                             prefixIcon: Padding(
-                              padding: EdgeInsets.only(bottom: 40),
-                              child: Icon(Icons.comment_outlined),
+                              padding:
+                                  EdgeInsets.only(bottom: 40),
+                              child: Icon(
+                                Icons.comment_outlined,
+                              ),
                             ),
                           ),
                           validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
+                            if (value == null ||
+                                value.trim().isEmpty) {
                               return 'Feedback wajib diisi.';
                             }
+
                             if (value.trim().length < 5) {
                               return 'Feedback minimal harus 5 karakter.';
                             }
+
                             return null;
                           },
                         ),
@@ -1063,56 +1268,88 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                             onPressed: isLoading
                                 ? null
                                 : () async {
-                                    if (formKey.currentState!.validate()) {
-                                      final bool? confirm = await showDialog<bool>(
-                                        context: context,
-                                        builder: (ctx) => AlertDialog(
-                                          title: const Text('Konfirmasi Pengiriman'),
-                                          content: const Text(
-                                            'Apakah Anda yakin ingin mengirim feedback pembelajaran ini?',
+                                    if (!formKey.currentState!
+                                        .validate()) {
+                                      return;
+                                    }
+
+                                    final bool? confirm =
+                                        await showDialog<bool>(
+                                      context: context,
+                                      builder: (ctx) =>
+                                          AlertDialog(
+                                        title: const Text(
+                                          'Konfirmasi Pengiriman',
+                                        ),
+                                        content: const Text(
+                                          'Apakah Anda yakin ingin mengirim feedback pembelajaran ini?',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(
+                                              ctx,
+                                              false,
+                                            ),
+                                            child: const Text(
+                                              'Batal',
+                                            ),
                                           ),
-                                          actions: [
-                                            TextButton(
-                                              onPressed: () =>
-                                                  Navigator.pop(ctx, false),
-                                              child: const Text('Batal'),
+                                          FilledButton(
+                                            onPressed: () =>
+                                                Navigator.pop(
+                                              ctx,
+                                              true,
                                             ),
-                                            FilledButton(
-                                              onPressed: () =>
-                                                  Navigator.pop(ctx, true),
-                                              child: const Text('Ya, Kirim'),
+                                            child: const Text(
+                                              'Ya, Kirim',
                                             ),
-                                          ],
+                                          ),
+                                        ],
+                                      ),
+                                    );
+
+                                    if (confirm == true) {
+                                      setState(() {
+                                        isLoading = true;
+                                      });
+
+                                      await Future.delayed(
+                                        const Duration(
+                                          seconds: 2,
                                         ),
                                       );
 
-                                      if (confirm == true) {
-                                        setState(() => isLoading = true);
-                                        await Future.delayed(
-                                          const Duration(seconds: 2),
-                                        );
-                                        if (!mounted) return;
-                                        setState(() => isLoading = false);
+                                      if (!mounted) return;
 
-                                        showMessage(
-                                          'Feedback berhasil dikirim. Terima kasih, $studentName!',
-                                        );
-                                        feedbackController.clear();
-                                      }
+                                      setState(() {
+                                        isLoading = false;
+                                      });
+
+                                      showMessage(
+                                        'Feedback berhasil dikirim. Terima kasih, $studentName!',
+                                      );
+
+                                      feedbackController.clear();
                                     }
                                   },
                             icon: isLoading
                                 ? const SizedBox(
                                     width: 20,
                                     height: 20,
-                                    child: CircularProgressIndicator(
+                                    child:
+                                        CircularProgressIndicator(
                                       strokeWidth: 2,
                                       color: Colors.white,
                                     ),
                                   )
-                                : const Icon(Icons.send_rounded),
+                                : const Icon(
+                                    Icons.send_rounded,
+                                  ),
                             label: Text(
-                              isLoading ? 'Mengirim...' : 'Kirim Feedback',
+                              isLoading
+                                  ? 'Mengirim...'
+                                  : 'Kirim Feedback',
                             ),
                           ),
                         ),
@@ -1128,6 +1365,264 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
     );
   }
 }
+
+// ======================================================
+// CHILD 1: COURSE LIST TILE - TAHAP 2
+// ======================================================
+
+class CourseListTileWidget extends StatelessWidget {
+  final Map<String, dynamic> course;
+  final Set<String> favorites;
+  final ValueChanged<String> onFavoriteChanged;
+  final VoidCallback onTap;
+  final VoidCallback onLongPress;
+
+  const CourseListTileWidget({
+    super.key,
+    required this.course,
+    required this.favorites,
+    required this.onFavoriteChanged,
+    required this.onTap,
+    required this.onLongPress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final String code =
+        (course['code'] ?? course['title'] ?? '').toString();
+
+    final bool isFavorite = favorites.contains(code);
+    final bool isDone = course['status'] == 'done';
+
+    return Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        onLongPress: onLongPress,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: isDone
+                      ? const Color(0xFFE8F8EF)
+                      : const Color(0xFFFFF4E5),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(
+                  isDone
+                      ? Icons.check_circle_outline
+                      : Icons.menu_book_rounded,
+                  color: isDone
+                      ? const Color(0xFF15803D)
+                      : const Color(0xFFB45309),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${course['title'] ?? 'Materi'}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '$code • ${course['credits'] ?? '-'} SKS',
+                      style: const TextStyle(
+                        color: mutedColor,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 9),
+                    _buildStatusPill(isDone),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                tooltip: isFavorite
+                    ? 'Hapus dari favorit'
+                    : 'Tambah ke favorit',
+                onPressed: () => onFavoriteChanged(code),
+                icon: Icon(
+                  isFavorite
+                      ? Icons.favorite
+                      : Icons.favorite_border,
+                  color: isFavorite ? Colors.red : mutedColor,
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right,
+                color: mutedColor,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusPill(bool isDone) {
+    final Color color = isDone
+        ? const Color(0xFF15803D)
+        : const Color(0xFFB45309);
+
+    final Color background = isDone
+        ? const Color(0xFFE8F8EF)
+        : const Color(0xFFFFF4E5);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 5,
+      ),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        isDone ? 'Selesai' : 'Belum selesai',
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+// ======================================================
+// CHILD 2: COURSE GRID CARD - TAHAP 2
+// ======================================================
+
+class CourseGridCardWidget extends StatelessWidget {
+  final Map<String, dynamic> course;
+  final Set<String> favorites;
+  final ValueChanged<String> onFavoriteChanged;
+  final VoidCallback onTap;
+
+  const CourseGridCardWidget({
+    super.key,
+    required this.course,
+    required this.favorites,
+    required this.onFavoriteChanged,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final String code =
+        (course['code'] ?? course['title'] ?? '').toString();
+
+    final bool isFavorite = favorites.contains(code);
+    final bool isDone = course['status'] == 'done';
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: isDone
+                      ? const Color(0xFFE8F8EF)
+                      : const Color(0xFFEAF2FF),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  isDone
+                      ? Icons.check_circle_outline
+                      : Icons.menu_book_rounded,
+                  color: isDone
+                      ? const Color(0xFF15803D)
+                      : primaryColor,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${course['title'] ?? 'Materi'}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Kode: $code',
+                      style: const TextStyle(
+                        color: mutedColor,
+                        fontSize: 12,
+                      ),
+                    ),
+                    Text(
+                      'SKS: ${course['credits'] ?? '-'}',
+                      style: const TextStyle(
+                        color: mutedColor,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      isDone ? 'Selesai' : 'Belum selesai',
+                      style: TextStyle(
+                        color: isDone
+                            ? const Color(0xFF15803D)
+                            : const Color(0xFFB45309),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: isFavorite
+                    ? 'Hapus dari favorit'
+                    : 'Tambah ke favorit',
+                onPressed: () => onFavoriteChanged(code),
+                icon: Icon(
+                  isFavorite
+                      ? Icons.favorite
+                      : Icons.favorite_border,
+                  color: isFavorite ? Colors.red : mutedColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ======================================================
+// EMPTY STATE
+// ======================================================
 
 class EmptyState extends StatelessWidget {
   const EmptyState({super.key});
@@ -1147,20 +1642,29 @@ class EmptyState extends StatelessWidget {
 }
 
 // ======================================================
-// COURSE DETAIL PAGE (STAGE 8 & 9)
+// COURSE DETAIL PAGE - TAHAP 2
 // ======================================================
 
 class CourseDetailPage extends StatelessWidget {
   final Map<String, dynamic> course;
+  final Set<String> favorites;
+  final ValueChanged<String> onFavoriteChanged;
 
   const CourseDetailPage({
     super.key,
     required this.course,
+    required this.favorites,
+    required this.onFavoriteChanged,
   });
 
   @override
   Widget build(BuildContext context) {
     final bool isDone = course['status'] == 'done';
+
+    final String code =
+        (course['code'] ?? course['title'] ?? '').toString();
+
+    final bool isFavorite = favorites.contains(code);
 
     return Scaffold(
       appBar: AppBar(
@@ -1170,9 +1674,12 @@ class CourseDetailPage extends StatelessWidget {
         padding: const EdgeInsets.all(24),
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 680),
+            constraints: const BoxConstraints(
+              maxWidth: 680,
+            ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment:
+                  CrossAxisAlignment.stretch,
               children: [
                 Card(
                   child: Padding(
@@ -1186,7 +1693,8 @@ class CourseDetailPage extends StatelessWidget {
                             color: isDone
                                 ? const Color(0xFFE8F8EF)
                                 : const Color(0xFFEAF2FF),
-                            borderRadius: BorderRadius.circular(24),
+                            borderRadius:
+                                BorderRadius.circular(24),
                           ),
                           child: Icon(
                             isDone
@@ -1210,23 +1718,39 @@ class CourseDetailPage extends StatelessWidget {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Kode materi: ${course['code'] ?? '-'}',
-                          style: const TextStyle(color: mutedColor),
+                          'Kode materi: $code',
+                          style: const TextStyle(
+                            color: mutedColor,
+                          ),
                         ),
                         const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 20),
-                          child: Divider(color: Color(0xFFE8EDF5)),
+                          padding: EdgeInsets.symmetric(
+                            vertical: 20,
+                          ),
+                          child: Divider(
+                            color: Color(0xFFE8EDF5),
+                          ),
                         ),
-                        _buildInfoRow('Kode', '${course['code'] ?? '-'}'),
+                        _buildInfoRow('Kode', code),
                         const SizedBox(height: 12),
                         _buildInfoRow(
-                            'Bobot SKS', '${course['credits'] ?? '-'} SKS'),
+                          'Bobot SKS',
+                          '${course['credits'] ?? '-'} SKS',
+                        ),
                         const SizedBox(height: 12),
                         _buildInfoRow(
-                            'Status', isDone ? 'Selesai' : 'Belum selesai'),
+                          'Status',
+                          isDone
+                              ? 'Selesai'
+                              : 'Belum selesai',
+                        ),
                         const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 20),
-                          child: Divider(color: Color(0xFFE8EDF5)),
+                          padding: EdgeInsets.symmetric(
+                            vertical: 20,
+                          ),
+                          child: Divider(
+                            color: Color(0xFFE8EDF5),
+                          ),
                         ),
                         const Align(
                           alignment: Alignment.centerLeft,
@@ -1250,23 +1774,36 @@ class CourseDetailPage extends StatelessWidget {
                 const SizedBox(height: 20),
                 FilledButton.icon(
                   onPressed: () {
-                    Navigator.pop(context, true);
+                    onFavoriteChanged(code);
+                    Navigator.pop(context);
                   },
                   style: FilledButton.styleFrom(
                     backgroundColor: primaryColor,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 14,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  icon: const Icon(Icons.favorite_border),
-                  label: const Text('Tambah ke Favorit'),
+                  icon: Icon(
+                    isFavorite
+                        ? Icons.favorite
+                        : Icons.favorite_border,
+                  ),
+                  label: Text(
+                    isFavorite
+                        ? 'Hapus dari Favorit'
+                        : 'Tambah ke Favorit',
+                  ),
                 ),
                 const SizedBox(height: 10),
                 OutlinedButton.icon(
-                  onPressed: () => Navigator.pop(context, false),
+                  onPressed: () => Navigator.pop(context),
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 14,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -1282,16 +1819,27 @@ class CourseDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
+  Widget _buildInfoRow(
+    String label,
+    String value,
+  ) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(color: mutedColor)),
         Text(
-          value,
+          label,
           style: const TextStyle(
-            fontWeight: FontWeight.w600,
-            color: textColor,
+            color: mutedColor,
+          ),
+        ),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              color: textColor,
+            ),
           ),
         ),
       ],
