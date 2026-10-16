@@ -1,13 +1,55 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 const String studentName = 'I Gede Adiwidya Utama';
 const String studentId = '2415051001';
+
 const Color primaryColor = Color(0xFF2563EB);
 const Color pageColor = Color(0xFFF5F7FB);
 const Color textColor = Color(0xFF172033);
 const Color mutedColor = Color(0xFF64748B);
+
+// ======================================================
+// TAHAP 5: CHANGE NOTIFIER
+// MODEL UNTUK MENGELOLA STATE FAVORIT
+// ======================================================
+
+class FavoritesModel extends ChangeNotifier {
+  final Set<String> _favorites = <String>{};
+
+  // Mengambil status favorit.
+  bool isFavorite(String code) {
+    return _favorites.contains(code);
+  }
+
+  // Mengambil semua favorit dalam bentuk salinan.
+  Set<String> get favoriteCodes => Set<String>.unmodifiable(
+        _favorites,
+      );
+
+  // Menghitung jumlah materi favorit.
+  int get count => _favorites.length;
+
+  // Menambah atau menghapus favorit.
+  void toggleFavorite(String code) {
+    if (code.isEmpty) return;
+
+    if (_favorites.contains(code)) {
+      _favorites.remove(code);
+    } else {
+      _favorites.add(code);
+    }
+
+    // Memberi tahu widget yang mendengarkan perubahan.
+    notifyListeners();
+  }
+}
+
+// ======================================================
+// MAIN
+// ======================================================
 
 void main() {
   runApp(const MyApp());
@@ -44,7 +86,9 @@ class MyApp extends StatelessWidget {
           margin: EdgeInsets.zero,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
-            side: const BorderSide(color: Color(0xFFE8EDF5)),
+            side: const BorderSide(
+              color: Color(0xFFE8EDF5),
+            ),
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
@@ -52,11 +96,15 @@ class MyApp extends StatelessWidget {
           fillColor: const Color(0xFFF8FAFC),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            borderSide: const BorderSide(
+              color: Color(0xFFE2E8F0),
+            ),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            borderSide: const BorderSide(
+              color: Color(0xFFE2E8F0),
+            ),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
@@ -84,30 +132,18 @@ class CourseExplorerPage extends StatefulWidget {
       _CourseExplorerPageState();
 }
 
-class _CourseExplorerPageState extends State<CourseExplorerPage> {
+class _CourseExplorerPageState
+    extends State<CourseExplorerPage> {
   late Future<Map<String, dynamic>> studentFuture;
 
   int selectedIndex = 0;
 
-  // Local state untuk eksperimen Tahap 1.
+  // TAHAP 1: local state.
   bool showStudentInfo = false;
 
-  // Shared state Tahap 2: dikelola oleh parent.
-  final Set<String> favorites = <String>{};
-
-  final TextEditingController emailController =
-      TextEditingController();
-
-  final TextEditingController studyController =
-      TextEditingController(
-    text: 'Pendidikan Teknik Informatika',
-  );
-
-  final TextEditingController addressController =
-      TextEditingController();
-
-  final TextEditingController descriptionController =
-      TextEditingController();
+  // TAHAP 5:
+  // Satu objek ChangeNotifier menjadi sumber state favorit.
+  final FavoritesModel favorites = FavoritesModel();
 
   final GlobalKey<FormState> formKey =
       GlobalKey<FormState>();
@@ -125,21 +161,20 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
 
   @override
   void dispose() {
-    emailController.dispose();
-    studyController.dispose();
-    addressController.dispose();
-    descriptionController.dispose();
     feedbackController.dispose();
+
+    // Membersihkan ChangeNotifier ketika parent dihapus.
+    favorites.dispose();
+
     super.dispose();
   }
 
   // ====================================================
-  // LOAD JSON DATA
+  // LOAD JSON
   // ====================================================
 
   Future<Map<String, dynamic>> loadStudentData() async {
-    final String jsonString =
-        await rootBundle.loadString(
+    final String jsonString = await rootBundle.loadString(
       'assets/data/student_data.json',
     );
 
@@ -150,7 +185,7 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
   List<Map<String, dynamic>> getCourses(
     Map<String, dynamic> data,
   ) {
-    final rawCourses =
+    final List<dynamic> rawCourses =
         data['courses'] as List<dynamic>? ?? [];
 
     return rawCourses
@@ -166,8 +201,36 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
         .length;
   }
 
+  String courseKey(Map<String, dynamic> course) {
+    return (course['code'] ?? course['title'] ?? '')
+        .toString();
+  }
+
   // ====================================================
-  // SHOW MESSAGE
+  // TAHAP 5: MENGAKSES CHANGE NOTIFIER
+  // ====================================================
+
+  bool isFavorite(String code) {
+    return favorites.isFavorite(code);
+  }
+
+  void toggleFavorite(String code) {
+    if (code.isEmpty) return;
+
+    final bool wasFavorite = favorites.isFavorite(code);
+
+    // ChangeNotifier akan memanggil notifyListeners().
+    favorites.toggleFavorite(code);
+
+    showMessage(
+      wasFavorite
+          ? 'Materi dihapus dari favorit.'
+          : 'Materi ditambahkan ke favorit.',
+    );
+  }
+
+  // ====================================================
+  // MESSAGE
   // ====================================================
 
   void showMessage(String message) {
@@ -181,39 +244,24 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
       );
   }
 
-  // Mengubah favorite dari parent agar semua child konsisten.
-  void toggleFavorite(String code) {
-    final bool wasFavorite = favorites.contains(code);
-
-    setState(() {
-      if (wasFavorite) {
-        favorites.remove(code);
-      } else {
-        favorites.add(code);
-      }
-    });
-
-    showMessage(
-      wasFavorite
-          ? 'Materi dihapus dari favorit.'
-          : 'Materi ditambahkan ke favorit.',
-    );
-  }
-
   // ====================================================
-  // OPEN COURSE DETAIL
+  // COURSE DETAIL
   // ====================================================
 
   Future<void> openCourse(
     Map<String, dynamic> course,
   ) async {
+    final String code = courseKey(course);
+
     await Navigator.push<void>(
       context,
-      MaterialPageRoute(
+      MaterialPageRoute<void>(
         builder: (_) => CourseDetailPage(
           course: course,
-          favorites: favorites,
-          onFavoriteChanged: toggleFavorite,
+          isFavorite: isFavorite(code),
+          onFavoriteChanged: () {
+            toggleFavorite(code);
+          },
         ),
       ),
     );
@@ -250,10 +298,6 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
       ],
     );
   }
-
-  // ====================================================
-  // NAVIGATION RAIL
-  // ====================================================
 
   Widget buildNavigationRail() {
     return NavigationRail(
@@ -294,7 +338,7 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
   }
 
   // ====================================================
-  // MAIN BUILD
+  // BUILD UTAMA
   // ====================================================
 
   @override
@@ -353,11 +397,16 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
           );
         }
 
-        final data = snapshot.data ?? {};
-        final courses = getCourses(data);
-        final completed = getCompletedCount(courses);
+        final Map<String, dynamic> data =
+            snapshot.data ?? {};
 
-        final pages = [
+        final List<Map<String, dynamic>> courses =
+            getCourses(data);
+
+        final int completed =
+            getCompletedCount(courses);
+
+        final List<Widget> pages = [
           buildHomePage(courses, completed),
           buildCoursesPage(courses),
           buildProfilePage(),
@@ -438,8 +487,6 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
     List<Map<String, dynamic>> courses,
     int completed,
   ) {
-    final remaining = courses.length - completed;
-
     return LayoutBuilder(
       builder: (context, constraints) {
         final bool wide =
@@ -447,6 +494,9 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
 
         final double horizontalPadding =
             constraints.maxWidth >= 1000 ? 36 : 20;
+
+        final int remaining =
+            courses.length - completed;
 
         return SingleChildScrollView(
           padding: EdgeInsets.symmetric(
@@ -463,11 +513,10 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                     CrossAxisAlignment.start,
                 children: [
                   buildWelcomeBanner(),
+
                   const SizedBox(height: 24),
 
-                  // ======================================
-                  // EKSPERIMEN LOCAL STATE - TAHAP 1
-                  // ======================================
+                  // TAHAP 1: LOCAL STATE.
 
                   Card(
                     child: Padding(
@@ -489,8 +538,7 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                                   'Eksperimen Local State',
                                   style: TextStyle(
                                     fontSize: 18,
-                                    fontWeight:
-                                        FontWeight.bold,
+                                    fontWeight: FontWeight.bold,
                                     color: textColor,
                                   ),
                                 ),
@@ -542,8 +590,7 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                                   child: Text(
                                     studentName,
                                     style: TextStyle(
-                                      fontWeight:
-                                          FontWeight.bold,
+                                      fontWeight: FontWeight.bold,
                                       color: textColor,
                                     ),
                                   ),
@@ -570,8 +617,6 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                             ),
                             const SizedBox(height: 12),
                             const Row(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.start,
                               children: [
                                 Icon(
                                   Icons.school_outlined,
@@ -612,11 +657,8 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                     ),
                   ),
 
-                  // ======================================
-                  // AKHIR EKSPERIMEN LOCAL STATE
-                  // ======================================
-
                   const SizedBox(height: 24),
+
                   const Text(
                     'Ringkasan Pembelajaran',
                     style: TextStyle(
@@ -625,7 +667,9 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                       color: textColor,
                     ),
                   ),
+
                   const SizedBox(height: 14),
+
                   if (wide)
                     Row(
                       children: [
@@ -696,7 +740,9 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                         ),
                       ],
                     ),
+
                   const SizedBox(height: 28),
+
                   Row(
                     children: [
                       const Expanded(
@@ -719,21 +765,22 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                       ),
                     ],
                   ),
+
                   const SizedBox(height: 12),
+
                   if (courses.isEmpty)
                     const EmptyState()
                   else
                     ...courses.take(3).map(
                           (course) => Padding(
                             padding:
-                                const EdgeInsets.only(
-                              bottom: 12,
-                            ),
-                            child:
-                                buildCourseListTile(course),
+                                const EdgeInsets.only(bottom: 12),
+                            child: buildCourseListTile(course),
                           ),
                         ),
+
                   const SizedBox(height: 24),
+
                   buildStudentFooter(),
                 ],
               ),
@@ -769,8 +816,7 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
               constraints.maxWidth < 500;
 
           return Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
@@ -818,11 +864,8 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                   vertical: 9,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(
-                    alpha: 0.15,
-                  ),
-                  borderRadius:
-                      BorderRadius.circular(10),
+                  color: Colors.white.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   'NIM  $studentId',
@@ -860,8 +903,7 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
               height: 48,
               decoration: BoxDecoration(
                 color: iconBackground,
-                borderRadius:
-                    BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(
                 icon,
@@ -915,22 +957,21 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
               color: primaryColor,
             ),
             const SizedBox(width: 12),
-            Expanded(
+            const Expanded(
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     studentName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w600,
                       color: textColor,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: 4),
                   Text(
                     'NIM: $studentId',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: mutedColor,
                       fontSize: 13,
                     ),
@@ -984,11 +1025,10 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                   const SizedBox(height: 8),
                   const Text(
                     'Pilih materi untuk melihat detail pembelajaran.',
-                    style: TextStyle(
-                      color: mutedColor,
-                    ),
+                    style: TextStyle(color: mutedColor),
                   ),
                   const SizedBox(height: 22),
+
                   if (courses.isEmpty)
                     const EmptyState()
                   else
@@ -1010,6 +1050,7 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                         );
                       },
                     ),
+
                   const SizedBox(height: 24),
                   buildStudentFooter(),
                 ],
@@ -1022,95 +1063,62 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
   }
 
   // ====================================================
-  // COURSE LIST TILE - PROP DRILLING TAHAP 2
+  // COURSE LIST TILE
+  // TAHAP 5: ANIMATEDBUILDER
   // ====================================================
 
   Widget buildCourseListTile(
     Map<String, dynamic> course,
   ) {
-    return CourseListTileWidget(
-      course: course,
-      favorites: favorites,
-      onFavoriteChanged: toggleFavorite,
-      onTap: () => openCourse(course),
-      onLongPress: () {
-        showMessage(
-          'Materi: ${course['title']} (${course['code'] ?? '-'})',
+    final String code = courseKey(course);
+
+    return AnimatedBuilder(
+      animation: favorites,
+      builder: (context, child) {
+        return CourseListTileWidget(
+          course: course,
+          isFavorite: favorites.isFavorite(code),
+          onFavoriteChanged: () {
+            toggleFavorite(code);
+          },
+          onTap: () {
+            openCourse(course);
+          },
+          onLongPress: () {
+            showMessage(
+              'Materi: ${course['title']} '
+              '(${course['code'] ?? '-'})',
+            );
+          },
         );
       },
     );
   }
 
   // ====================================================
-  // COURSE GRID CARD - PROP DRILLING TAHAP 2
+  // COURSE GRID CARD
+  // TAHAP 5: ANIMATEDBUILDER
   // ====================================================
 
   Widget buildCourseGridCard(
     Map<String, dynamic> course,
   ) {
-    return CourseGridCardWidget(
-      course: course,
-      favorites: favorites,
-      onFavoriteChanged: toggleFavorite,
-      onTap: () => openCourse(course),
-    );
-  }
+    final String code = courseKey(course);
 
-  // ====================================================
-  // COURSE ICON
-  // ====================================================
-
-  Widget buildCourseIcon(bool isDone) {
-    return Container(
-      width: 46,
-      height: 46,
-      decoration: BoxDecoration(
-        color: isDone
-            ? const Color(0xFFE8F8EF)
-            : const Color(0xFFFFF4E5),
-        borderRadius: BorderRadius.circular(13),
-      ),
-      child: Icon(
-        isDone
-            ? Icons.check_circle_outline
-            : Icons.menu_book_rounded,
-        color: isDone
-            ? const Color(0xFF15803D)
-            : const Color(0xFFB45309),
-      ),
-    );
-  }
-
-  // ====================================================
-  // COURSE STATUS PILL
-  // ====================================================
-
-  Widget buildStatusPill(bool isDone) {
-    final color = isDone
-        ? const Color(0xFF15803D)
-        : const Color(0xFFB45309);
-
-    final background = isDone
-        ? const Color(0xFFE8F8EF)
-        : const Color(0xFFFFF4E5);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 5,
-      ),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        isDone ? 'Selesai' : 'Belum selesai',
-        style: TextStyle(
-          color: color,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
+    return AnimatedBuilder(
+      animation: favorites,
+      builder: (context, child) {
+        return CourseGridCardWidget(
+          course: course,
+          isFavorite: favorites.isFavorite(code),
+          onFavoriteChanged: () {
+            toggleFavorite(code);
+          },
+          onTap: () {
+            openCourse(course);
+          },
+        );
+      },
     );
   }
 
@@ -1123,9 +1131,7 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
       padding: const EdgeInsets.all(24),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: 720,
-          ),
+          constraints: const BoxConstraints(maxWidth: 720),
           child: Column(
             crossAxisAlignment:
                 CrossAxisAlignment.start,
@@ -1140,10 +1146,11 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Informasi mahasiswa dan formulir profil.',
+                'Informasi mahasiswa dan formulir feedback.',
                 style: TextStyle(color: mutedColor),
               ),
               const SizedBox(height: 22),
+
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(22),
@@ -1156,35 +1163,33 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                         ),
                       ),
                       const SizedBox(height: 14),
-                      Text(
+                      const Text(
                         studentName,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 19,
                           fontWeight: FontWeight.bold,
                           color: textColor,
                         ),
                       ),
                       const SizedBox(height: 6),
-                      Text(
+                      const Text(
                         'NIM: $studentId',
-                        style: const TextStyle(
-                          color: mutedColor,
-                        ),
+                        style: TextStyle(color: mutedColor),
                       ),
                       const SizedBox(height: 6),
                       const Text(
                         'Pendidikan Teknik Informatika',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: mutedColor,
-                        ),
+                        style: TextStyle(color: mutedColor),
                       ),
                     ],
                   ),
                 ),
               ),
+
               const SizedBox(height: 20),
+
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(22),
@@ -1195,7 +1200,7 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                           CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Formulir Feedback & Konfirmasi',
+                          'Feedback Pembelajaran',
                           style: TextStyle(
                             fontSize: 19,
                             fontWeight: FontWeight.bold,
@@ -1203,50 +1208,41 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                           ),
                         ),
                         const SizedBox(height: 20),
+
                         const Text('Nama Mahasiswa'),
                         const SizedBox(height: 8),
-                        TextFormField(
+                        const TextField(
                           readOnly: true,
-                          initialValue: studentName,
-                          decoration:
-                              const InputDecoration(
-                            prefixIcon: Icon(
-                              Icons.person_outline,
-                            ),
+                          decoration: InputDecoration(
+                            prefixIcon:
+                                Icon(Icons.person_outline),
+                            hintText: studentName,
                           ),
                         ),
+
                         const SizedBox(height: 16),
+
                         const Text('NIM'),
                         const SizedBox(height: 8),
-                        TextFormField(
+                        const TextField(
                           readOnly: true,
-                          initialValue: studentId,
-                          decoration:
-                              const InputDecoration(
-                            prefixIcon: Icon(
-                              Icons.badge_outlined,
-                            ),
+                          decoration: InputDecoration(
+                            prefixIcon:
+                                Icon(Icons.badge_outlined),
+                            hintText: studentId,
                           ),
                         ),
+
                         const SizedBox(height: 16),
-                        const Text(
-                          'Komentar / Feedback Pembelajaran',
-                        ),
+
+                        const Text('Komentar atau Masukan'),
                         const SizedBox(height: 8),
                         TextFormField(
                           controller: feedbackController,
                           maxLines: 3,
-                          decoration:
-                              const InputDecoration(
+                          decoration: const InputDecoration(
                             hintText:
-                                'Tuliskan kesan atau masukan materi...',
-                            prefixIcon: Padding(
-                              padding:
-                                  EdgeInsets.only(bottom: 40),
-                              child: Icon(
-                                Icons.comment_outlined,
-                              ),
-                            ),
+                                'Tuliskan kesan atau masukan...',
                           ),
                           validator: (value) {
                             if (value == null ||
@@ -1255,84 +1251,21 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                             }
 
                             if (value.trim().length < 5) {
-                              return 'Feedback minimal harus 5 karakter.';
+                              return 'Feedback minimal 5 karakter.';
                             }
 
                             return null;
                           },
                         ),
+
                         const SizedBox(height: 20),
+
                         SizedBox(
                           width: double.infinity,
                           child: FilledButton.icon(
                             onPressed: isLoading
                                 ? null
-                                : () async {
-                                    if (!formKey.currentState!
-                                        .validate()) {
-                                      return;
-                                    }
-
-                                    final bool? confirm =
-                                        await showDialog<bool>(
-                                      context: context,
-                                      builder: (ctx) =>
-                                          AlertDialog(
-                                        title: const Text(
-                                          'Konfirmasi Pengiriman',
-                                        ),
-                                        content: const Text(
-                                          'Apakah Anda yakin ingin mengirim feedback pembelajaran ini?',
-                                        ),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () =>
-                                                Navigator.pop(
-                                              ctx,
-                                              false,
-                                            ),
-                                            child: const Text(
-                                              'Batal',
-                                            ),
-                                          ),
-                                          FilledButton(
-                                            onPressed: () =>
-                                                Navigator.pop(
-                                              ctx,
-                                              true,
-                                            ),
-                                            child: const Text(
-                                              'Ya, Kirim',
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-
-                                    if (confirm == true) {
-                                      setState(() {
-                                        isLoading = true;
-                                      });
-
-                                      await Future.delayed(
-                                        const Duration(
-                                          seconds: 2,
-                                        ),
-                                      );
-
-                                      if (!mounted) return;
-
-                                      setState(() {
-                                        isLoading = false;
-                                      });
-
-                                      showMessage(
-                                        'Feedback berhasil dikirim. Terima kasih, $studentName!',
-                                      );
-
-                                      feedbackController.clear();
-                                    }
-                                  },
+                                : submitFeedback,
                             icon: isLoading
                                 ? const SizedBox(
                                     width: 20,
@@ -1343,9 +1276,7 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                                       color: Colors.white,
                                     ),
                                   )
-                                : const Icon(
-                                    Icons.send_rounded,
-                                  ),
+                                : const Icon(Icons.send_rounded),
                             label: Text(
                               isLoading
                                   ? 'Mengirim...'
@@ -1364,23 +1295,81 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
       ),
     );
   }
+
+  // ====================================================
+  // SUBMIT FEEDBACK
+  // ====================================================
+
+  Future<void> submitFeedback() async {
+    if (!formKey.currentState!.validate()) {
+      return;
+    }
+
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Konfirmasi Pengiriman'),
+          content: const Text(
+            'Apakah Anda yakin ingin mengirim feedback ini?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, false);
+              },
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, true);
+              },
+              child: const Text('Ya, Kirim'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm != true || !mounted) {
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+    });
+
+    await Future.delayed(const Duration(seconds: 2));
+
+    if (!mounted) return;
+
+    setState(() {
+      isLoading = false;
+    });
+
+    showMessage(
+      'Feedback berhasil dikirim. Terima kasih, $studentName!',
+    );
+
+    feedbackController.clear();
+  }
 }
 
 // ======================================================
-// CHILD 1: COURSE LIST TILE - TAHAP 2
+// CHILD WIDGET: COURSE LIST TILE
 // ======================================================
 
 class CourseListTileWidget extends StatelessWidget {
   final Map<String, dynamic> course;
-  final Set<String> favorites;
-  final ValueChanged<String> onFavoriteChanged;
+  final bool isFavorite;
+  final VoidCallback onFavoriteChanged;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
 
   const CourseListTileWidget({
     super.key,
     required this.course,
-    required this.favorites,
+    required this.isFavorite,
     required this.onFavoriteChanged,
     required this.onTap,
     required this.onLongPress,
@@ -1388,11 +1377,11 @@ class CourseListTileWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String code =
-        (course['code'] ?? course['title'] ?? '').toString();
-
-    final bool isFavorite = favorites.contains(code);
     final bool isDone = course['status'] == 'done';
+
+    final String code =
+        (course['code'] ?? course['title'] ?? '-')
+            .toString();
 
     return Card(
       child: InkWell(
@@ -1422,6 +1411,7 @@ class CourseListTileWidget extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 14),
+
               Expanded(
                 child: Column(
                   crossAxisAlignment:
@@ -1448,12 +1438,14 @@ class CourseListTileWidget extends StatelessWidget {
                   ],
                 ),
               ),
+
               const SizedBox(width: 8),
+
               IconButton(
                 tooltip: isFavorite
                     ? 'Hapus dari favorit'
                     : 'Tambah ke favorit',
-                onPressed: () => onFavoriteChanged(code),
+                onPressed: onFavoriteChanged,
                 icon: Icon(
                   isFavorite
                       ? Icons.favorite
@@ -1461,6 +1453,7 @@ class CourseListTileWidget extends StatelessWidget {
                   color: isFavorite ? Colors.red : mutedColor,
                 ),
               ),
+
               const Icon(
                 Icons.chevron_right,
                 color: mutedColor,
@@ -1503,30 +1496,30 @@ class CourseListTileWidget extends StatelessWidget {
 }
 
 // ======================================================
-// CHILD 2: COURSE GRID CARD - TAHAP 2
+// CHILD WIDGET: COURSE GRID CARD
 // ======================================================
 
 class CourseGridCardWidget extends StatelessWidget {
   final Map<String, dynamic> course;
-  final Set<String> favorites;
-  final ValueChanged<String> onFavoriteChanged;
+  final bool isFavorite;
+  final VoidCallback onFavoriteChanged;
   final VoidCallback onTap;
 
   const CourseGridCardWidget({
     super.key,
     required this.course,
-    required this.favorites,
+    required this.isFavorite,
     required this.onFavoriteChanged,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final String code =
-        (course['code'] ?? course['title'] ?? '').toString();
-
-    final bool isFavorite = favorites.contains(code);
     final bool isDone = course['status'] == 'done';
+
+    final String code =
+        (course['code'] ?? course['title'] ?? '-')
+            .toString();
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -1535,7 +1528,8 @@ class CourseGridCardWidget extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
               Container(
                 width: 42,
@@ -1555,7 +1549,9 @@ class CourseGridCardWidget extends StatelessWidget {
                       : primaryColor,
                 ),
               ),
+
               const SizedBox(width: 10),
+
               Expanded(
                 child: Column(
                   crossAxisAlignment:
@@ -1600,11 +1596,12 @@ class CourseGridCardWidget extends StatelessWidget {
                   ],
                 ),
               ),
+
               IconButton(
                 tooltip: isFavorite
                     ? 'Hapus dari favorit'
                     : 'Tambah ke favorit',
-                onPressed: () => onFavoriteChanged(code),
+                onPressed: onFavoriteChanged,
                 icon: Icon(
                   isFavorite
                       ? Icons.favorite
@@ -1642,18 +1639,18 @@ class EmptyState extends StatelessWidget {
 }
 
 // ======================================================
-// COURSE DETAIL PAGE - TAHAP 2
+// COURSE DETAIL PAGE
 // ======================================================
 
 class CourseDetailPage extends StatelessWidget {
   final Map<String, dynamic> course;
-  final Set<String> favorites;
-  final ValueChanged<String> onFavoriteChanged;
+  final bool isFavorite;
+  final VoidCallback onFavoriteChanged;
 
   const CourseDetailPage({
     super.key,
     required this.course,
-    required this.favorites,
+    required this.isFavorite,
     required this.onFavoriteChanged,
   });
 
@@ -1662,9 +1659,8 @@ class CourseDetailPage extends StatelessWidget {
     final bool isDone = course['status'] == 'done';
 
     final String code =
-        (course['code'] ?? course['title'] ?? '').toString();
-
-    final bool isFavorite = favorites.contains(code);
+        (course['code'] ?? course['title'] ?? '-')
+            .toString();
 
     return Scaffold(
       appBar: AppBar(
@@ -1724,9 +1720,8 @@ class CourseDetailPage extends StatelessWidget {
                           ),
                         ),
                         const Padding(
-                          padding: EdgeInsets.symmetric(
-                            vertical: 20,
-                          ),
+                          padding:
+                              EdgeInsets.symmetric(vertical: 20),
                           child: Divider(
                             color: Color(0xFFE8EDF5),
                           ),
@@ -1740,14 +1735,11 @@ class CourseDetailPage extends StatelessWidget {
                         const SizedBox(height: 12),
                         _buildInfoRow(
                           'Status',
-                          isDone
-                              ? 'Selesai'
-                              : 'Belum selesai',
+                          isDone ? 'Selesai' : 'Belum selesai',
                         ),
                         const Padding(
-                          padding: EdgeInsets.symmetric(
-                            vertical: 20,
-                          ),
+                          padding:
+                              EdgeInsets.symmetric(vertical: 20),
                           child: Divider(
                             color: Color(0xFFE8EDF5),
                           ),
@@ -1771,17 +1763,18 @@ class CourseDetailPage extends StatelessWidget {
                     ),
                   ),
                 ),
+
                 const SizedBox(height: 20),
+
                 FilledButton.icon(
                   onPressed: () {
-                    onFavoriteChanged(code);
+                    onFavoriteChanged();
                     Navigator.pop(context);
                   },
                   style: FilledButton.styleFrom(
                     backgroundColor: primaryColor,
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 14,
-                    ),
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -1797,13 +1790,16 @@ class CourseDetailPage extends StatelessWidget {
                         : 'Tambah ke Favorit',
                   ),
                 ),
+
                 const SizedBox(height: 10),
+
                 OutlinedButton.icon(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 14,
-                    ),
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -1828,9 +1824,7 @@ class CourseDetailPage extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: mutedColor,
-          ),
+          style: const TextStyle(color: mutedColor),
         ),
         Flexible(
           child: Text(
