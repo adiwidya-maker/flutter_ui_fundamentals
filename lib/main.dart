@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
 const String studentName = 'I Gede Adiwidya Utama';
 const String studentId = '2415051001';
@@ -13,26 +14,21 @@ const Color mutedColor = Color(0xFF64748B);
 
 // ======================================================
 // TAHAP 5: CHANGE NOTIFIER
-// MODEL UNTUK MENGELOLA STATE FAVORIT
+// TAHAP 6: PROVIDER
 // ======================================================
 
 class FavoritesModel extends ChangeNotifier {
   final Set<String> _favorites = <String>{};
 
-  // Mengambil status favorit.
   bool isFavorite(String code) {
     return _favorites.contains(code);
   }
 
-  // Mengambil semua favorit dalam bentuk salinan.
-  Set<String> get favoriteCodes => Set<String>.unmodifiable(
-        _favorites,
-      );
+  Set<String> get favoriteCodes =>
+      Set<String>.unmodifiable(_favorites);
 
-  // Menghitung jumlah materi favorit.
   int get count => _favorites.length;
 
-  // Menambah atau menghapus favorit.
   void toggleFavorite(String code) {
     if (code.isEmpty) return;
 
@@ -42,7 +38,6 @@ class FavoritesModel extends ChangeNotifier {
       _favorites.add(code);
     }
 
-    // Memberi tahu widget yang mendengarkan perubahan.
     notifyListeners();
   }
 }
@@ -57,6 +52,7 @@ void main() {
 
 // ======================================================
 // APPLICATION
+// TAHAP 6: CHANGENOTIFIERPROVIDER
 // ======================================================
 
 class MyApp extends StatelessWidget {
@@ -64,58 +60,61 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Course Explorer',
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: primaryColor,
-          brightness: Brightness.light,
-        ),
-        scaffoldBackgroundColor: pageColor,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: pageColor,
-          foregroundColor: textColor,
-          elevation: 0,
-          centerTitle: false,
-        ),
-        cardTheme: CardThemeData(
-          color: Colors.white,
-          elevation: 0,
-          margin: EdgeInsets.zero,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-            side: const BorderSide(
-              color: Color(0xFFE8EDF5),
+    return ChangeNotifierProvider<FavoritesModel>(
+      create: (_) => FavoritesModel(),
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'Course Explorer',
+        theme: ThemeData(
+          useMaterial3: true,
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: primaryColor,
+            brightness: Brightness.light,
+          ),
+          scaffoldBackgroundColor: pageColor,
+          appBarTheme: const AppBarTheme(
+            backgroundColor: pageColor,
+            foregroundColor: textColor,
+            elevation: 0,
+            centerTitle: false,
+          ),
+          cardTheme: CardThemeData(
+            color: Colors.white,
+            elevation: 0,
+            margin: EdgeInsets.zero,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+              side: const BorderSide(
+                color: Color(0xFFE8EDF5),
+              ),
+            ),
+          ),
+          inputDecorationTheme: InputDecorationTheme(
+            filled: true,
+            fillColor: const Color(0xFFF8FAFC),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(
+                color: Color(0xFFE2E8F0),
+              ),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(
+                color: Color(0xFFE2E8F0),
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(
+                color: primaryColor,
+                width: 1.5,
+              ),
             ),
           ),
         ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: const Color(0xFFF8FAFC),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(
-              color: Color(0xFFE2E8F0),
-            ),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(
-              color: Color(0xFFE2E8F0),
-            ),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(
-              color: primaryColor,
-              width: 1.5,
-            ),
-          ),
-        ),
+        home: const CourseExplorerPage(),
       ),
-      home: const CourseExplorerPage(),
     );
   }
 }
@@ -138,12 +137,8 @@ class _CourseExplorerPageState
 
   int selectedIndex = 0;
 
-  // TAHAP 1: local state.
+  // TAHAP 1: LOCAL STATE.
   bool showStudentInfo = false;
-
-  // TAHAP 5:
-  // Satu objek ChangeNotifier menjadi sumber state favorit.
-  final FavoritesModel favorites = FavoritesModel();
 
   final GlobalKey<FormState> formKey =
       GlobalKey<FormState>();
@@ -162,19 +157,19 @@ class _CourseExplorerPageState
   @override
   void dispose() {
     feedbackController.dispose();
-
-    // Membersihkan ChangeNotifier ketika parent dihapus.
-    favorites.dispose();
-
     super.dispose();
+
+    // FavoritesModel dikelola oleh Provider,
+    // sehingga tidak perlu di-dispose di sini.
   }
 
   // ====================================================
-  // LOAD JSON
+  // LOAD JSON DATA
   // ====================================================
 
   Future<Map<String, dynamic>> loadStudentData() async {
-    final String jsonString = await rootBundle.loadString(
+    final String jsonString =
+        await rootBundle.loadString(
       'assets/data/student_data.json',
     );
 
@@ -197,30 +192,33 @@ class _CourseExplorerPageState
     List<Map<String, dynamic>> courses,
   ) {
     return courses
-        .where((course) => course['status'] == 'done')
+        .where(
+          (course) => course['status'] == 'done',
+        )
         .length;
   }
 
   String courseKey(Map<String, dynamic> course) {
-    return (course['code'] ?? course['title'] ?? '')
-        .toString();
+    return (
+      course['code'] ??
+      course['title'] ??
+      ''
+    ).toString();
   }
 
   // ====================================================
-  // TAHAP 5: MENGAKSES CHANGE NOTIFIER
+  // TAHAP 7: CONTEXT.READ()
+  // Mengakses model untuk melakukan aksi.
+  // Tidak berlangganan perubahan state.
   // ====================================================
-
-  bool isFavorite(String code) {
-    return favorites.isFavorite(code);
-  }
 
   void toggleFavorite(String code) {
-    if (code.isEmpty) return;
+    final FavoritesModel model =
+        context.read<FavoritesModel>();
 
-    final bool wasFavorite = favorites.isFavorite(code);
+    final bool wasFavorite = model.isFavorite(code);
 
-    // ChangeNotifier akan memanggil notifyListeners().
-    favorites.toggleFavorite(code);
+    model.toggleFavorite(code);
 
     showMessage(
       wasFavorite
@@ -230,7 +228,7 @@ class _CourseExplorerPageState
   }
 
   // ====================================================
-  // MESSAGE
+  // SNACKBAR MESSAGE
   // ====================================================
 
   void showMessage(String message) {
@@ -245,7 +243,7 @@ class _CourseExplorerPageState
   }
 
   // ====================================================
-  // COURSE DETAIL
+  // OPEN COURSE DETAIL
   // ====================================================
 
   Future<void> openCourse(
@@ -253,12 +251,17 @@ class _CourseExplorerPageState
   ) async {
     final String code = courseKey(course);
 
+    // context.read digunakan untuk mengambil
+    // status saat halaman detail dibuka.
+    final bool currentFavorite =
+        context.read<FavoritesModel>().isFavorite(code);
+
     await Navigator.push<void>(
       context,
       MaterialPageRoute<void>(
         builder: (_) => CourseDetailPage(
           course: course,
-          isFavorite: isFavorite(code),
+          isFavorite: currentFavorite,
           onFavoriteChanged: () {
             toggleFavorite(code);
           },
@@ -268,7 +271,7 @@ class _CourseExplorerPageState
   }
 
   // ====================================================
-  // NAVIGATION BAR
+  // BOTTOM NAVIGATION BAR
   // ====================================================
 
   Widget buildNavigationBar() {
@@ -298,6 +301,10 @@ class _CourseExplorerPageState
       ],
     );
   }
+
+  // ====================================================
+  // NAVIGATION RAIL
+  // ====================================================
 
   Widget buildNavigationRail() {
     return NavigationRail(
@@ -338,7 +345,7 @@ class _CourseExplorerPageState
   }
 
   // ====================================================
-  // BUILD UTAMA
+  // MAIN BUILD
   // ====================================================
 
   @override
@@ -384,7 +391,8 @@ class _CourseExplorerPageState
                     FilledButton.icon(
                       onPressed: () {
                         setState(() {
-                          studentFuture = loadStudentData();
+                          studentFuture =
+                              loadStudentData();
                         });
                       },
                       icon: const Icon(Icons.refresh),
@@ -513,7 +521,6 @@ class _CourseExplorerPageState
                     CrossAxisAlignment.start,
                 children: [
                   buildWelcomeBanner(),
-
                   const SizedBox(height: 24),
 
                   // TAHAP 1: LOCAL STATE.
@@ -617,6 +624,8 @@ class _CourseExplorerPageState
                             ),
                             const SizedBox(height: 12),
                             const Row(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
                               children: [
                                 Icon(
                                   Icons.school_outlined,
@@ -643,7 +652,7 @@ class _CourseExplorerPageState
                                 SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
-                                    'Semester: 4',
+                                    'Semester: 5',
                                     style: TextStyle(
                                       color: mutedColor,
                                     ),
@@ -667,7 +676,6 @@ class _CourseExplorerPageState
                       color: textColor,
                     ),
                   ),
-
                   const SizedBox(height: 14),
 
                   if (wide)
@@ -741,6 +749,59 @@ class _CourseExplorerPageState
                       ],
                     ),
 
+                  const SizedBox(height: 16),
+
+                  // TAHAP 7: CONTEXT.WATCH()
+                  // UI mendengarkan perubahan jumlah favorit.
+
+                  Builder(
+                    builder: (context) {
+                      final FavoritesModel model =
+                          context.watch<FavoritesModel>();
+
+                      return Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(18),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 46,
+                                height: 46,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFE8EC),
+                                  borderRadius:
+                                      BorderRadius.circular(14),
+                                ),
+                                child: const Icon(
+                                  Icons.favorite,
+                                  color: Colors.red,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              const Expanded(
+                                child: Text(
+                                  'Materi Favorit',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: textColor,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                '${model.count}',
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: textColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+
                   const SizedBox(height: 28),
 
                   Row(
@@ -765,7 +826,6 @@ class _CourseExplorerPageState
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 12),
 
                   if (courses.isEmpty)
@@ -780,7 +840,6 @@ class _CourseExplorerPageState
                         ),
 
                   const SizedBox(height: 24),
-
                   buildStudentFooter(),
                 ],
               ),
@@ -816,7 +875,8 @@ class _CourseExplorerPageState
               constraints.maxWidth < 500;
 
           return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
@@ -948,16 +1008,16 @@ class _CourseExplorerPageState
 
   Widget buildStudentFooter() {
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+      child: const Padding(
+        padding: EdgeInsets.all(16),
         child: Row(
           children: [
-            const Icon(
+            Icon(
               Icons.person_outline,
               color: primaryColor,
             ),
-            const SizedBox(width: 12),
-            const Expanded(
+            SizedBox(width: 12),
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1064,7 +1124,7 @@ class _CourseExplorerPageState
 
   // ====================================================
   // COURSE LIST TILE
-  // TAHAP 5: ANIMATEDBUILDER
+  // TAHAP 7: CONTEXT.WATCH() DAN CONTEXT.READ()
   // ====================================================
 
   Widget buildCourseListTile(
@@ -1072,14 +1132,25 @@ class _CourseExplorerPageState
   ) {
     final String code = courseKey(course);
 
-    return AnimatedBuilder(
-      animation: favorites,
-      builder: (context, child) {
+    return Builder(
+      builder: (context) {
+        // Watch dipakai karena ikon harus mengikuti perubahan.
+        final FavoritesModel model =
+            context.watch<FavoritesModel>();
+
         return CourseListTileWidget(
           course: course,
-          isFavorite: favorites.isFavorite(code),
+          isFavorite: model.isFavorite(code),
           onFavoriteChanged: () {
-            toggleFavorite(code);
+            // Read hanya untuk menjalankan aksi.
+            context.read<FavoritesModel>()
+                .toggleFavorite(code);
+
+            showMessage(
+              model.isFavorite(code)
+                  ? 'Materi ditambahkan ke favorit.'
+                  : 'Materi dihapus dari favorit.',
+            );
           },
           onTap: () {
             openCourse(course);
@@ -1097,7 +1168,7 @@ class _CourseExplorerPageState
 
   // ====================================================
   // COURSE GRID CARD
-  // TAHAP 5: ANIMATEDBUILDER
+  // TAHAP 7: CONTEXT.WATCH() DAN CONTEXT.READ()
   // ====================================================
 
   Widget buildCourseGridCard(
@@ -1105,14 +1176,28 @@ class _CourseExplorerPageState
   ) {
     final String code = courseKey(course);
 
-    return AnimatedBuilder(
-      animation: favorites,
-      builder: (context, child) {
+    return Builder(
+      builder: (context) {
+        final FavoritesModel model =
+            context.watch<FavoritesModel>();
+
         return CourseGridCardWidget(
           course: course,
-          isFavorite: favorites.isFavorite(code),
+          isFavorite: model.isFavorite(code),
           onFavoriteChanged: () {
-            toggleFavorite(code);
+            final FavoritesModel favorites =
+                context.read<FavoritesModel>();
+
+            final bool wasFavorite =
+                favorites.isFavorite(code);
+
+            favorites.toggleFavorite(code);
+
+            showMessage(
+              wasFavorite
+                  ? 'Materi dihapus dari favorit.'
+                  : 'Materi ditambahkan ke favorit.',
+            );
           },
           onTap: () {
             openCourse(course);
@@ -1339,7 +1424,9 @@ class _CourseExplorerPageState
       isLoading = true;
     });
 
-    await Future.delayed(const Duration(seconds: 2));
+    await Future.delayed(
+      const Duration(seconds: 2),
+    );
 
     if (!mounted) return;
 
@@ -1584,7 +1671,9 @@ class CourseGridCardWidget extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      isDone ? 'Selesai' : 'Belum selesai',
+                      isDone
+                          ? 'Selesai'
+                          : 'Belum selesai',
                       style: TextStyle(
                         color: isDone
                             ? const Color(0xFF15803D)
@@ -1670,9 +1759,7 @@ class CourseDetailPage extends StatelessWidget {
         padding: const EdgeInsets.all(24),
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: 680,
-            ),
+            constraints: const BoxConstraints(maxWidth: 680),
             child: Column(
               crossAxisAlignment:
                   CrossAxisAlignment.stretch,
