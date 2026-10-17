@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'providers/course_provider.dart'; // Menggunakan course_provider yang baru
+import 'providers/course_provider.dart';
 import 'services/course_service.dart';
 import 'screens/home_page.dart';
 
@@ -23,7 +23,6 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        // Menggunakan CourseProvider yang mencakup state course & favorites sekaligus
         ChangeNotifierProvider<CourseProvider>(
           create: (_) {
             final provider = CourseProvider(
