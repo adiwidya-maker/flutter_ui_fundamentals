@@ -68,38 +68,57 @@ class Course {
 }
 
 // ======================================================
-// TAHAP 9: COURSE SERVICE
-// Bertanggung jawab membaca JSON dan membuat Course.
+// TAHAP 10: REPOSITORY CONTRACT
+// Mendefinisikan operasi untuk mendapatkan materi.
 // ======================================================
 
-class CourseService {
-  static const String dataPath =
-      'assets/data/student_data.json';
+abstract class CourseRepository {
+  Future<List<Course>> getCourses();
+}
 
-  Future<List<Course>> fetchCourses() async {
-    // Membaca berkas JSON dari assets.
+// ======================================================
+// TAHAP 10: ASSET COURSE REPOSITORY
+// Bertanggung jawab mengambil dan mem-parsing JSON.
+// ======================================================
+
+class AssetCourseRepository implements CourseRepository {
+  final String assetPath;
+
+  const AssetCourseRepository({
+    this.assetPath = 'assets/data/student_data.json',
+  });
+
+  @override
+  Future<List<Course>> getCourses() async {
+    // 1. Membaca file JSON dari assets.
     final String jsonString =
-        await rootBundle.loadString(dataPath);
+        await rootBundle.loadString(assetPath);
 
-    // Mengonversi teks JSON menjadi objek Dart.
+    // 2. Mengubah teks JSON menjadi objek Dart.
     final dynamic decodedData = jsonDecode(jsonString);
 
-    if (decodedData is! Map<String, dynamic>) {
+    if (decodedData is! Map) {
       throw const FormatException(
         'Format JSON tidak valid. Data utama harus berupa objek.',
       );
     }
 
-    final dynamic rawCourses = decodedData['courses'];
+    final Map<String, dynamic> data =
+        Map<String, dynamic>.from(decodedData);
+
+    // 3. Memeriksa apakah data courses tersedia.
+    final dynamic rawCourses = data['courses'];
 
     if (rawCourses is! List) {
       throw const FormatException(
-        'Data JSON harus mempunyai properti courses berupa daftar.',
+        'Data JSON harus memiliki properti courses berupa daftar.',
       );
     }
 
-    // Mengonversi setiap item menjadi objek Course.
-    return rawCourses.map<Course>((item) {
+    // 4. Mengonversi setiap item menjadi Course.
+    final List<Course> courses = [];
+
+    for (final dynamic item in rawCourses) {
       if (item is! Map) {
         throw const FormatException(
           'Setiap materi harus berupa objek JSON.',
@@ -109,8 +128,27 @@ class CourseService {
       final Map<String, dynamic> courseJson =
           Map<String, dynamic>.from(item);
 
-      return Course.fromJson(courseJson);
-    }).toList();
+      courses.add(Course.fromJson(courseJson));
+    }
+
+    return courses;
+  }
+}
+
+// ======================================================
+// TAHAP 10: COURSE SERVICE
+// Service menggunakan repository, bukan membaca JSON.
+// ======================================================
+
+class CourseService {
+  final CourseRepository repository;
+
+  const CourseService({
+    required this.repository,
+  });
+
+  Future<List<Course>> fetchCourses() {
+    return repository.getCourses();
   }
 }
 
@@ -236,7 +274,8 @@ class CourseExplorerPage extends StatefulWidget {
 
 class _CourseExplorerPageState
     extends State<CourseExplorerPage> {
-  final CourseService courseService = CourseService();
+  // Repository menjadi dependency milik service.
+  late final CourseService courseService;
 
   late Future<List<Course>> coursesFuture;
 
@@ -257,8 +296,12 @@ class _CourseExplorerPageState
   void initState() {
     super.initState();
 
-    // TAHAP 9:
-    // Meminta service mengambil data materi.
+    // TAHAP 10: Inisialisasi Repository -> Service.
+    courseService = CourseService(
+      repository: const AssetCourseRepository(),
+    );
+
+    // UI hanya meminta data dari service.
     coursesFuture = courseService.fetchCourses();
   }
 
@@ -269,7 +312,7 @@ class _CourseExplorerPageState
   }
 
   // ====================================================
-  // TAHAP 9: MEMUAT ULANG DATA
+  // RETRY LOADING
   // ====================================================
 
   void retryLoadingCourses() {
@@ -294,7 +337,6 @@ class _CourseExplorerPageState
 
   // ====================================================
   // TAHAP 7: CONTEXT.READ
-  // Digunakan untuk menjalankan aksi favorit.
   // ====================================================
 
   void toggleFavorite(String code) {
@@ -427,7 +469,7 @@ class _CourseExplorerPageState
 
   // ====================================================
   // MAIN BUILD
-  // TAHAP 9: FUTUREBUILDER MENGGUNAKAN COURSE SERVICE
+  // TAHAP 10: FUTUREBUILDER MENGGUNAKAN SERVICE
   // ====================================================
 
   @override
@@ -839,7 +881,7 @@ class _CourseExplorerPageState
 
                   const SizedBox(height: 16),
 
-                  // WATCH MEMANTAU JUMLAH FAVORIT.
+                  // TAHAP 7: WATCH MEMANTAU JUMLAH FAVORIT.
 
                   Builder(
                     builder: (context) {
@@ -978,8 +1020,7 @@ class _CourseExplorerPageState
                   const SizedBox(width: 16),
                   Expanded(
                     child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'Halo, $studentName!',
