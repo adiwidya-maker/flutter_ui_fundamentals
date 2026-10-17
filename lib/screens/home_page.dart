@@ -24,7 +24,6 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
   Widget build(BuildContext context) {
     final courseProvider = context.watch<CourseProvider>();
 
-    // Menangani async states (Loading & Error pada level UI jika diperlukan)
     if (courseProvider.status == CourseLoadStatus.loading ||
         courseProvider.status == CourseLoadStatus.initial) {
       return const Scaffold(

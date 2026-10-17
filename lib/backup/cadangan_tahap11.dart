@@ -251,10 +251,6 @@ class FavoritesModel extends ChangeNotifier {
 // MAIN
 // ======================================================
 
-void main() {
-  runApp(const MyApp());
-}
-
 // ======================================================
 // APPLICATION
 // TAHAP 6 DAN 11: MULTIPROVIDER

@@ -16,7 +16,6 @@ class CourseProvider extends ChangeNotifier {
     required this.service,
   });
 
-  // Async State untuk Course
   CourseLoadStatus _status = CourseLoadStatus.initial;
   List<Course> _courses = <Course>[];
   String? _errorMessage;
@@ -46,7 +45,7 @@ class CourseProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Shared State untuk Favorites (Tahap 13)
+  // Shared State untuk Favorites
   final Set<String> _favorites = <String>{};
 
   bool isFavorite(String code) {
@@ -64,7 +63,7 @@ class CourseProvider extends ChangeNotifier {
     } else {
       _favorites.add(code);
     }
-    
+
     notifyListeners();
   }
 }
