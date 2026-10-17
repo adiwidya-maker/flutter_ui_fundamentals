@@ -13,8 +13,112 @@ const Color textColor = Color(0xFF172033);
 const Color mutedColor = Color(0xFF64748B);
 
 // ======================================================
+// TAHAP 8: COURSE MODEL
+// ======================================================
+
+class Course {
+  final String code;
+  final String title;
+  final int credits;
+  final String status;
+
+  const Course({
+    required this.code,
+    required this.title,
+    required this.credits,
+    required this.status,
+  });
+
+  factory Course.fromJson(Map<String, dynamic> json) {
+    final dynamic rawCredits = json['credits'];
+
+    int parsedCredits = 0;
+
+    if (rawCredits is int) {
+      parsedCredits = rawCredits;
+    } else if (rawCredits is num) {
+      parsedCredits = rawCredits.toInt();
+    } else if (rawCredits != null) {
+      parsedCredits =
+          int.tryParse(rawCredits.toString()) ?? 0;
+    }
+
+    return Course(
+      code: (json['code'] ?? '').toString(),
+      title: (json['title'] ?? 'Materi').toString(),
+      credits: parsedCredits,
+      status: (json['status'] ?? 'not_started').toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'code': code,
+      'title': title,
+      'credits': credits,
+      'status': status,
+    };
+  }
+
+  bool get isDone => status.toLowerCase() == 'done';
+
+  String get creditsLabel {
+    return credits > 0 ? '$credits SKS' : '-';
+  }
+}
+
+// ======================================================
+// TAHAP 9: COURSE SERVICE
+// Bertanggung jawab membaca JSON dan membuat Course.
+// ======================================================
+
+class CourseService {
+  static const String dataPath =
+      'assets/data/student_data.json';
+
+  Future<List<Course>> fetchCourses() async {
+    // Membaca berkas JSON dari assets.
+    final String jsonString =
+        await rootBundle.loadString(dataPath);
+
+    // Mengonversi teks JSON menjadi objek Dart.
+    final dynamic decodedData = jsonDecode(jsonString);
+
+    if (decodedData is! Map<String, dynamic>) {
+      throw const FormatException(
+        'Format JSON tidak valid. Data utama harus berupa objek.',
+      );
+    }
+
+    final dynamic rawCourses = decodedData['courses'];
+
+    if (rawCourses is! List) {
+      throw const FormatException(
+        'Data JSON harus mempunyai properti courses berupa daftar.',
+      );
+    }
+
+    // Mengonversi setiap item menjadi objek Course.
+    return rawCourses.map<Course>((item) {
+      if (item is! Map) {
+        throw const FormatException(
+          'Setiap materi harus berupa objek JSON.',
+        );
+      }
+
+      final Map<String, dynamic> courseJson =
+          Map<String, dynamic>.from(item);
+
+      return Course.fromJson(courseJson);
+    }).toList();
+  }
+}
+
+// ======================================================
+// FAVORITES MODEL
 // TAHAP 5: CHANGE NOTIFIER
 // TAHAP 6: PROVIDER
+// TAHAP 7: CONTEXT.READ DAN CONTEXT.WATCH
 // ======================================================
 
 class FavoritesModel extends ChangeNotifier {
@@ -52,7 +156,6 @@ void main() {
 
 // ======================================================
 // APPLICATION
-// TAHAP 6: CHANGENOTIFIERPROVIDER
 // ======================================================
 
 class MyApp extends StatelessWidget {
@@ -133,7 +236,9 @@ class CourseExplorerPage extends StatefulWidget {
 
 class _CourseExplorerPageState
     extends State<CourseExplorerPage> {
-  late Future<Map<String, dynamic>> studentFuture;
+  final CourseService courseService = CourseService();
+
+  late Future<List<Course>> coursesFuture;
 
   int selectedIndex = 0;
 
@@ -151,65 +256,45 @@ class _CourseExplorerPageState
   @override
   void initState() {
     super.initState();
-    studentFuture = loadStudentData();
+
+    // TAHAP 9:
+    // Meminta service mengambil data materi.
+    coursesFuture = courseService.fetchCourses();
   }
 
   @override
   void dispose() {
     feedbackController.dispose();
     super.dispose();
-
-    // FavoritesModel dikelola oleh Provider,
-    // sehingga tidak perlu di-dispose di sini.
   }
 
   // ====================================================
-  // LOAD JSON DATA
+  // TAHAP 9: MEMUAT ULANG DATA
   // ====================================================
 
-  Future<Map<String, dynamic>> loadStudentData() async {
-    final String jsonString =
-        await rootBundle.loadString(
-      'assets/data/student_data.json',
-    );
-
-    return jsonDecode(jsonString)
-        as Map<String, dynamic>;
-  }
-
-  List<Map<String, dynamic>> getCourses(
-    Map<String, dynamic> data,
-  ) {
-    final List<dynamic> rawCourses =
-        data['courses'] as List<dynamic>? ?? [];
-
-    return rawCourses
-        .whereType<Map<String, dynamic>>()
-        .toList();
-  }
-
-  int getCompletedCount(
-    List<Map<String, dynamic>> courses,
-  ) {
-    return courses
-        .where(
-          (course) => course['status'] == 'done',
-        )
-        .length;
-  }
-
-  String courseKey(Map<String, dynamic> course) {
-    return (
-      course['code'] ??
-      course['title'] ??
-      ''
-    ).toString();
+  void retryLoadingCourses() {
+    setState(() {
+      coursesFuture = courseService.fetchCourses();
+    });
   }
 
   // ====================================================
-  // TAHAP 7: CONTEXT.READ()
-  // Mengakses model untuk melakukan aksi.
-  // Tidak berlangganan perubahan state.
+  // COURSE HELPERS
+  // ====================================================
+
+  int getCompletedCount(List<Course> courses) {
+    return courses.where((course) => course.isDone).length;
+  }
+
+  String courseKey(Course course) {
+    return course.code.isNotEmpty
+        ? course.code
+        : course.title;
+  }
+
+  // ====================================================
+  // TAHAP 7: CONTEXT.READ
+  // Digunakan untuk menjalankan aksi favorit.
   // ====================================================
 
   void toggleFavorite(String code) {
@@ -246,13 +331,9 @@ class _CourseExplorerPageState
   // OPEN COURSE DETAIL
   // ====================================================
 
-  Future<void> openCourse(
-    Map<String, dynamic> course,
-  ) async {
+  Future<void> openCourse(Course course) async {
     final String code = courseKey(course);
 
-    // context.read digunakan untuk mengambil
-    // status saat halaman detail dibuka.
     final bool currentFavorite =
         context.read<FavoritesModel>().isFavorite(code);
 
@@ -346,24 +427,38 @@ class _CourseExplorerPageState
 
   // ====================================================
   // MAIN BUILD
+  // TAHAP 9: FUTUREBUILDER MENGGUNAKAN COURSE SERVICE
   // ====================================================
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Map<String, dynamic>>(
-      future: studentFuture,
+    return FutureBuilder<List<Course>>(
+      future: coursesFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState ==
             ConnectionState.waiting) {
           return const Scaffold(
             body: Center(
-              child: CircularProgressIndicator(),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text(
+                    'Memuat materi pembelajaran...',
+                    style: TextStyle(color: mutedColor),
+                  ),
+                ],
+              ),
             ),
           );
         }
 
         if (snapshot.hasError) {
           return Scaffold(
+            appBar: AppBar(
+              title: const Text('Course Explorer'),
+            ),
             body: Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -378,23 +473,23 @@ class _CourseExplorerPageState
                     const SizedBox(height: 12),
                     const Text(
                       'Data pembelajaran gagal dimuat.',
+                      textAlign: TextAlign.center,
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
+                        color: textColor,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       '${snapshot.error}',
                       textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: mutedColor,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     FilledButton.icon(
-                      onPressed: () {
-                        setState(() {
-                          studentFuture =
-                              loadStudentData();
-                        });
-                      },
+                      onPressed: retryLoadingCourses,
                       icon: const Icon(Icons.refresh),
                       label: const Text('Coba Lagi'),
                     ),
@@ -405,14 +500,10 @@ class _CourseExplorerPageState
           );
         }
 
-        final Map<String, dynamic> data =
-            snapshot.data ?? {};
+        final List<Course> courses =
+            snapshot.data ?? <Course>[];
 
-        final List<Map<String, dynamic>> courses =
-            getCourses(data);
-
-        final int completed =
-            getCompletedCount(courses);
+        final int completed = getCompletedCount(courses);
 
         final List<Widget> pages = [
           buildHomePage(courses, completed),
@@ -492,19 +583,17 @@ class _CourseExplorerPageState
   // ====================================================
 
   Widget buildHomePage(
-    List<Map<String, dynamic>> courses,
+    List<Course> courses,
     int completed,
   ) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final bool wide =
-            constraints.maxWidth >= 700;
+        final bool wide = constraints.maxWidth >= 700;
 
         final double horizontalPadding =
             constraints.maxWidth >= 1000 ? 36 : 20;
 
-        final int remaining =
-            courses.length - completed;
+        final int remaining = courses.length - completed;
 
         return SingleChildScrollView(
           padding: EdgeInsets.symmetric(
@@ -517,13 +606,12 @@ class _CourseExplorerPageState
                 maxWidth: 1200,
               ),
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   buildWelcomeBanner(),
                   const SizedBox(height: 24),
 
-                  // TAHAP 1: LOCAL STATE.
+                  // LOCAL STATE: INFORMASI MAHASISWA.
 
                   Card(
                     child: Padding(
@@ -554,7 +642,7 @@ class _CourseExplorerPageState
                           ),
                           const SizedBox(height: 8),
                           const Text(
-                            'Tekan tombol di bawah untuk menampilkan atau menyembunyikan informasi mahasiswa.',
+                            'Tekan tombol untuk menampilkan atau menyembunyikan informasi mahasiswa.',
                             style: TextStyle(
                               color: mutedColor,
                               height: 1.5,
@@ -652,7 +740,7 @@ class _CourseExplorerPageState
                                 SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
-                                    'Semester: 5',
+                                    'Semester: 4',
                                     style: TextStyle(
                                       color: mutedColor,
                                     ),
@@ -751,8 +839,7 @@ class _CourseExplorerPageState
 
                   const SizedBox(height: 16),
 
-                  // TAHAP 7: CONTEXT.WATCH()
-                  // UI mendengarkan perubahan jumlah favorit.
+                  // WATCH MEMANTAU JUMLAH FAVORIT.
 
                   Builder(
                     builder: (context) {
@@ -871,12 +958,10 @@ class _CourseExplorerPageState
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final bool compact =
-              constraints.maxWidth < 500;
+          final bool compact = constraints.maxWidth < 500;
 
           return Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
@@ -974,8 +1059,7 @@ class _CourseExplorerPageState
             const SizedBox(width: 14),
             Expanded(
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,
@@ -1049,9 +1133,7 @@ class _CourseExplorerPageState
   // COURSES PAGE
   // ====================================================
 
-  Widget buildCoursesPage(
-    List<Map<String, dynamic>> courses,
-  ) {
+  Widget buildCoursesPage(List<Course> courses) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final int columns =
@@ -1071,8 +1153,7 @@ class _CourseExplorerPageState
                 maxWidth: 1200,
               ),
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
                     'Semua Materi',
@@ -1124,17 +1205,14 @@ class _CourseExplorerPageState
 
   // ====================================================
   // COURSE LIST TILE
-  // TAHAP 7: CONTEXT.WATCH() DAN CONTEXT.READ()
+  // TAHAP 7: CONTEXT.WATCH DAN CONTEXT.READ
   // ====================================================
 
-  Widget buildCourseListTile(
-    Map<String, dynamic> course,
-  ) {
+  Widget buildCourseListTile(Course course) {
     final String code = courseKey(course);
 
     return Builder(
       builder: (context) {
-        // Watch dipakai karena ikon harus mengikuti perubahan.
         final FavoritesModel model =
             context.watch<FavoritesModel>();
 
@@ -1142,23 +1220,14 @@ class _CourseExplorerPageState
           course: course,
           isFavorite: model.isFavorite(code),
           onFavoriteChanged: () {
-            // Read hanya untuk menjalankan aksi.
-            context.read<FavoritesModel>()
-                .toggleFavorite(code);
-
-            showMessage(
-              model.isFavorite(code)
-                  ? 'Materi ditambahkan ke favorit.'
-                  : 'Materi dihapus dari favorit.',
-            );
+            toggleFavorite(code);
           },
           onTap: () {
             openCourse(course);
           },
           onLongPress: () {
             showMessage(
-              'Materi: ${course['title']} '
-              '(${course['code'] ?? '-'})',
+              'Materi: ${course.title} (${course.code})',
             );
           },
         );
@@ -1168,12 +1237,9 @@ class _CourseExplorerPageState
 
   // ====================================================
   // COURSE GRID CARD
-  // TAHAP 7: CONTEXT.WATCH() DAN CONTEXT.READ()
   // ====================================================
 
-  Widget buildCourseGridCard(
-    Map<String, dynamic> course,
-  ) {
+  Widget buildCourseGridCard(Course course) {
     final String code = courseKey(course);
 
     return Builder(
@@ -1185,19 +1251,7 @@ class _CourseExplorerPageState
           course: course,
           isFavorite: model.isFavorite(code),
           onFavoriteChanged: () {
-            final FavoritesModel favorites =
-                context.read<FavoritesModel>();
-
-            final bool wasFavorite =
-                favorites.isFavorite(code);
-
-            favorites.toggleFavorite(code);
-
-            showMessage(
-              wasFavorite
-                  ? 'Materi dihapus dari favorit.'
-                  : 'Materi ditambahkan ke favorit.',
-            );
+            toggleFavorite(code);
           },
           onTap: () {
             openCourse(course);
@@ -1218,8 +1272,7 @@ class _CourseExplorerPageState
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 720),
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
                 'Profil Mahasiswa',
@@ -1281,8 +1334,7 @@ class _CourseExplorerPageState
                   child: Form(
                     key: formKey,
                     child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
                           'Feedback Pembelajaran',
@@ -1447,7 +1499,7 @@ class _CourseExplorerPageState
 // ======================================================
 
 class CourseListTileWidget extends StatelessWidget {
-  final Map<String, dynamic> course;
+  final Course course;
   final bool isFavorite;
   final VoidCallback onFavoriteChanged;
   final VoidCallback onTap;
@@ -1464,12 +1516,6 @@ class CourseListTileWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool isDone = course['status'] == 'done';
-
-    final String code =
-        (course['code'] ?? course['title'] ?? '-')
-            .toString();
-
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
@@ -1483,16 +1529,16 @@ class CourseListTileWidget extends StatelessWidget {
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  color: isDone
+                  color: course.isDone
                       ? const Color(0xFFE8F8EF)
                       : const Color(0xFFFFF4E5),
                   borderRadius: BorderRadius.circular(13),
                 ),
                 child: Icon(
-                  isDone
+                  course.isDone
                       ? Icons.check_circle_outline
                       : Icons.menu_book_rounded,
-                  color: isDone
+                  color: course.isDone
                       ? const Color(0xFF15803D)
                       : const Color(0xFFB45309),
                 ),
@@ -1501,11 +1547,10 @@ class CourseListTileWidget extends StatelessWidget {
 
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${course['title'] ?? 'Materi'}',
+                      course.title,
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         color: textColor,
@@ -1514,14 +1559,14 @@ class CourseListTileWidget extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      '$code • ${course['credits'] ?? '-'} SKS',
+                      '${course.code} • ${course.creditsLabel}',
                       style: const TextStyle(
                         color: mutedColor,
                         fontSize: 13,
                       ),
                     ),
                     const SizedBox(height: 9),
-                    _buildStatusPill(isDone),
+                    _buildStatusPill(course.isDone),
                   ],
                 ),
               ),
@@ -1587,7 +1632,7 @@ class CourseListTileWidget extends StatelessWidget {
 // ======================================================
 
 class CourseGridCardWidget extends StatelessWidget {
-  final Map<String, dynamic> course;
+  final Course course;
   final bool isFavorite;
   final VoidCallback onFavoriteChanged;
   final VoidCallback onTap;
@@ -1602,12 +1647,6 @@ class CourseGridCardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool isDone = course['status'] == 'done';
-
-    final String code =
-        (course['code'] ?? course['title'] ?? '-')
-            .toString();
-
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -1615,23 +1654,22 @@ class CourseGridCardWidget extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: isDone
+                  color: course.isDone
                       ? const Color(0xFFE8F8EF)
                       : const Color(0xFFEAF2FF),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
-                  isDone
+                  course.isDone
                       ? Icons.check_circle_outline
                       : Icons.menu_book_rounded,
-                  color: isDone
+                  color: course.isDone
                       ? const Color(0xFF15803D)
                       : primaryColor,
                 ),
@@ -1641,11 +1679,10 @@ class CourseGridCardWidget extends StatelessWidget {
 
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${course['title'] ?? 'Materi'}',
+                      course.title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -1656,14 +1693,14 @@ class CourseGridCardWidget extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Kode: $code',
+                      'Kode: ${course.code}',
                       style: const TextStyle(
                         color: mutedColor,
                         fontSize: 12,
                       ),
                     ),
                     Text(
-                      'SKS: ${course['credits'] ?? '-'}',
+                      'SKS: ${course.credits > 0 ? course.credits : '-'}',
                       style: const TextStyle(
                         color: mutedColor,
                         fontSize: 12,
@@ -1671,11 +1708,11 @@ class CourseGridCardWidget extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      isDone
+                      course.isDone
                           ? 'Selesai'
                           : 'Belum selesai',
                       style: TextStyle(
-                        color: isDone
+                        color: course.isDone
                             ? const Color(0xFF15803D)
                             : const Color(0xFFB45309),
                         fontWeight: FontWeight.w600,
@@ -1732,7 +1769,7 @@ class EmptyState extends StatelessWidget {
 // ======================================================
 
 class CourseDetailPage extends StatelessWidget {
-  final Map<String, dynamic> course;
+  final Course course;
   final bool isFavorite;
   final VoidCallback onFavoriteChanged;
 
@@ -1745,12 +1782,6 @@ class CourseDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool isDone = course['status'] == 'done';
-
-    final String code =
-        (course['code'] ?? course['title'] ?? '-')
-            .toString();
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Detail Materi'),
@@ -1761,8 +1792,7 @@ class CourseDetailPage extends StatelessWidget {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 680),
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.stretch,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Card(
                   child: Padding(
@@ -1773,17 +1803,16 @@ class CourseDetailPage extends StatelessWidget {
                           width: 84,
                           height: 84,
                           decoration: BoxDecoration(
-                            color: isDone
+                            color: course.isDone
                                 ? const Color(0xFFE8F8EF)
                                 : const Color(0xFFEAF2FF),
-                            borderRadius:
-                                BorderRadius.circular(24),
+                            borderRadius: BorderRadius.circular(24),
                           ),
                           child: Icon(
-                            isDone
+                            course.isDone
                                 ? Icons.check_circle_outline
                                 : Icons.menu_book_rounded,
-                            color: isDone
+                            color: course.isDone
                                 ? const Color(0xFF15803D)
                                 : primaryColor,
                             size: 40,
@@ -1791,7 +1820,7 @@ class CourseDetailPage extends StatelessWidget {
                         ),
                         const SizedBox(height: 18),
                         Text(
-                          '${course['title'] ?? 'Materi'}',
+                          course.title,
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             fontSize: 20,
@@ -1801,32 +1830,32 @@ class CourseDetailPage extends StatelessWidget {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Kode materi: $code',
+                          'Kode materi: ${course.code}',
                           style: const TextStyle(
                             color: mutedColor,
                           ),
                         ),
                         const Padding(
-                          padding:
-                              EdgeInsets.symmetric(vertical: 20),
+                          padding: EdgeInsets.symmetric(vertical: 20),
                           child: Divider(
                             color: Color(0xFFE8EDF5),
                           ),
                         ),
-                        _buildInfoRow('Kode', code),
+                        _buildInfoRow('Kode', course.code),
                         const SizedBox(height: 12),
                         _buildInfoRow(
                           'Bobot SKS',
-                          '${course['credits'] ?? '-'} SKS',
+                          course.creditsLabel,
                         ),
                         const SizedBox(height: 12),
                         _buildInfoRow(
                           'Status',
-                          isDone ? 'Selesai' : 'Belum selesai',
+                          course.isDone
+                              ? 'Selesai'
+                              : 'Belum selesai',
                         ),
                         const Padding(
-                          padding:
-                              EdgeInsets.symmetric(vertical: 20),
+                          padding: EdgeInsets.symmetric(vertical: 20),
                           child: Divider(
                             color: Color(0xFFE8EDF5),
                           ),
@@ -1860,8 +1889,7 @@ class CourseDetailPage extends StatelessWidget {
                   },
                   style: FilledButton.styleFrom(
                     backgroundColor: primaryColor,
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 14),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -1885,8 +1913,7 @@ class CourseDetailPage extends StatelessWidget {
                     Navigator.pop(context);
                   },
                   style: OutlinedButton.styleFrom(
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 14),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
