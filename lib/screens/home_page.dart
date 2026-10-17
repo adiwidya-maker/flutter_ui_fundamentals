@@ -38,7 +38,6 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Banner Selamat Datang, Foto Profil, & Info Semester
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(24),
@@ -175,38 +174,99 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
             },
           ),
 
-          // TAB 2: PROFIL MAHASISWA
-          SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              children: [
-                const CircleAvatar(
-                  radius: 45,
-                  backgroundImage: AssetImage('assets/images/foto.didi.jpeg'),
+          // TAB 2: FAVORITES & PROFIL (Shared State Sinkronisasi)
+          Consumer<CourseProvider>(
+            builder: (context, provider, child) {
+              final favoriteCourses = provider.courses
+                  .where((course) => provider.isFavorite(course.code))
+                  .toList();
+
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Center(
+                      child: CircleAvatar(
+                        radius: 45,
+                        backgroundImage: AssetImage('assets/images/foto.didi.jpeg'),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Center(
+                      child: Text(
+                        studentName,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Center(
+                      child: Text(
+                        'NIM: $studentId • Semester 5',
+                        style: const TextStyle(color: mutedColor),
+                      ),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      child: Divider(),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Materi Favorit Saya',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: textColor,
+                          ),
+                        ),
+                        Chip(
+                          label: Text('${favoriteCourses.length} Disukai'),
+                          backgroundColor: const Color(0xFFEAF2FF),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    if (favoriteCourses.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 32),
+                        child: Center(
+                          child: Text(
+                            'Belum ada materi favorit yang dipilih.',
+                            style: TextStyle(color: mutedColor),
+                          ),
+                        ),
+                      )
+                    else
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: favoriteCourses.length,
+                        itemBuilder: (context, index) {
+                          final course = favoriteCourses[index];
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: CourseListTileWidget(
+                              course: course,
+                              isFavorite: true,
+                              onFavoriteChanged: () {
+                                provider.toggleFavorite(course.code);
+                              },
+                              onTap: () {},
+                              onLongPress: () {},
+                            ),
+                          );
+                        },
+                      ),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  studentName,
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: textColor,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text('NIM: $studentId', style: const TextStyle(color: mutedColor)),
-                const SizedBox(height: 6),
-                const Text(
-                  'Program Studi: Pendidikan Teknik Informatika',
-                  style: TextStyle(color: mutedColor),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Semester: 5',
-                  style: TextStyle(color: mutedColor),
-                ),
-              ],
-            ),
+              );
+            },
           ),
         ],
       ),
@@ -229,9 +289,9 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
             label: 'Courses',
           ),
           NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Profil',
+            icon: Icon(Icons.favorite_outline),
+            selectedIcon: Icon(Icons.favorite),
+            label: 'Favorites',
           ),
         ],
       ),
