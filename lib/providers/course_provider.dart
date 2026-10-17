@@ -64,7 +64,7 @@ class CourseProvider extends ChangeNotifier {
     } else {
       _favorites.add(code);
     }
-
+    
     notifyListeners();
   }
 }
