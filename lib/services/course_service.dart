@@ -1,64 +1,62 @@
-import 'dart:convert';
-import 'package:flutter/services.dart';
-import '../models/course.dart';
 
-abstract class CourseRepository {
-  Future<List<Course>> getCourses();
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+
+import '../models/course.dart';
+import '../repositories/course_repository.dart';
+
+// GANTI dengan URL GET yang kamu dapatkan dari MockBolt.
+const String apiUrl = 'https://mockbolt.com/b/e67eddee-9e3d-44c3-ae85-0c565de24048';
+
+Future<List<dynamic>> fetchCourses() async {
+  final response = await http.get(
+    Uri.parse(apiUrl),
+  );
+
+  if (response.statusCode == 200) {
+    final dynamic data = jsonDecode(response.body);
+
+    if (data is List) {
+      return data;
+    }
+
+    if (data is Map) {
+      return <dynamic>[
+        Map<String, dynamic>.from(data),
+      ];
+    }
+
+    throw const FormatException(
+      'Format response JSON tidak valid.',
+    );
+  }
+
+  throw Exception('HTTP ${response.statusCode}');
 }
 
-class AssetCourseRepository implements CourseRepository {
-  final String assetPath;
+Future<void> testFetchCourses() async {
+  try {
+    final courses = await fetchCourses();
 
-  const AssetCourseRepository({
-    this.assetPath = 'assets/data/student_data.json',
-  });
-
-  @override
-  Future<List<Course>> getCourses() async {
-    final String jsonString = await rootBundle.loadString(assetPath);
-    final dynamic decodedData = jsonDecode(jsonString);
-
-    if (decodedData is! Map) {
-      throw const FormatException(
-        'Format JSON tidak valid. Data utama harus berupa objek.',
-      );
-    }
-
-    final Map<String, dynamic> data = Map<String, dynamic>.from(decodedData);
-    final dynamic rawCourses = data['courses'];
-
-    if (rawCourses is! List) {
-      throw const FormatException(
-        'Data JSON harus memiliki properti courses berupa daftar.',
-      );
-    }
-
-    final List<Course> courses = [];
-
-    for (final dynamic item in rawCourses) {
-      if (item is! Map) {
-        throw const FormatException('Setiap materi harus berupa objek JSON.');
-      }
-
-      courses.add(
-        Course.fromJson(
-          Map<String, dynamic>.from(item),
-        ),
-      );
-    }
-
-    return courses;
+    debugPrint('HTTP GET berhasil.');
+    debugPrint('Jumlah item: ${courses.length}');
+    debugPrint('Response JSON: $courses');
+  } catch (error) {
+    debugPrint('HTTP GET gagal: $error');
   }
 }
 
+// CourseService yang sudah digunakan aplikasi tetap dipertahankan.
 class CourseService {
   final CourseRepository repository;
 
-  const CourseService({
+  CourseService({
     required this.repository,
   });
 
-  Future<List<Course>> fetchCourses() {
-    return repository.getCourses();
+  Future<List<Course>> getCourses() async {
+    return await repository.getCourses();
   }
 }

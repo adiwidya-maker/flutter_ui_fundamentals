@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/course.dart';
 import '../providers/course_provider.dart';
 import '../widgets/course_card.dart';
+import '../services/course_service.dart';
 
 const String studentName = 'I Gede Adiwidya Utama';
 const String studentId = '2415051001';
@@ -19,6 +20,13 @@ class CourseExplorerPage extends StatefulWidget {
 
 class _CourseExplorerPageState extends State<CourseExplorerPage> {
   int selectedIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+
+    testFetchCourses();
+  }
 
   @override
   Widget build(BuildContext context) {

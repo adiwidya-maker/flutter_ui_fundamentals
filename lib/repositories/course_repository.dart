@@ -5,12 +5,10 @@ import 'package:flutter/services.dart';
 
 import '../models/course.dart';
 
-// Kontrak repository untuk mengambil data kursus.
 abstract class CourseRepository {
   Future<List<Course>> getCourses();
 }
 
-// Implementasi repository untuk membaca data dari JSON.
 class AssetCourseRepository implements CourseRepository {
   final String assetPath;
 
@@ -23,41 +21,32 @@ class AssetCourseRepository implements CourseRepository {
     final String jsonString =
         await rootBundle.loadString(assetPath);
 
-    final dynamic decodedData = jsonDecode(jsonString);
+    final dynamic decoded = jsonDecode(jsonString);
 
-    if (decodedData is! Map) {
+    if (decoded is! Map) {
       throw const FormatException(
-        'Format JSON tidak valid. Data utama harus berupa objek.',
+        'Format JSON harus berupa objek.',
       );
     }
 
-    final Map<String, dynamic> data =
-        Map<String, dynamic>.from(decodedData);
-
-    final dynamic rawCourses = data['courses'];
+    final dynamic rawCourses = decoded['courses'];
 
     if (rawCourses is! List) {
       throw const FormatException(
-        'Data JSON harus memiliki properti courses berupa daftar.',
+        'Properti courses tidak ditemukan dalam JSON.',
       );
     }
 
-    final List<Course> courses = [];
-
-    for (final dynamic item in rawCourses) {
+    return rawCourses.map((item) {
       if (item is! Map) {
         throw const FormatException(
-          'Setiap materi harus berupa objek JSON.',
+          'Data kursus harus berupa objek JSON.',
         );
       }
 
-      courses.add(
-        Course.fromJson(
-          Map<String, dynamic>.from(item),
-        ),
+      return Course.fromJson(
+        Map<String, dynamic>.from(item),
       );
-    }
-
-    return courses;
+    }).toList();
   }
 }

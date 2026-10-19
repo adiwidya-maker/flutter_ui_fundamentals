@@ -34,7 +34,7 @@ class CourseProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final List<Course> result = await service.fetchCourses();
+      final List<Course> result = await service.getCourses();
       _courses = result;
       _status = CourseLoadStatus.success;
     } catch (error) {
