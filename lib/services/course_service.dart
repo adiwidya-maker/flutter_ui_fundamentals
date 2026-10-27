@@ -1,4 +1,3 @@
-
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -7,10 +6,10 @@ import 'package:http/http.dart' as http;
 import '../models/course.dart';
 import '../repositories/course_repository.dart';
 
-// GANTI dengan URL GET yang kamu dapatkan dari MockBolt.
-const String apiUrl = 'https://mockbolt.com/b/e67eddee-9e3d-44c3-ae85-0c565de24048';
+// URL endpoint API latihan (menggunakan JSONPlaceholder sesuai tahap sebelumnya)
+const String apiUrl = 'https://jsonplaceholder.typicode.com/posts';
 
-Future<List<dynamic>> fetchCourses() async {
+Future<List<dynamic>> fetchCoursesFromApi() async {
   final response = await http.get(
     Uri.parse(apiUrl),
   );
@@ -38,7 +37,7 @@ Future<List<dynamic>> fetchCourses() async {
 
 Future<void> testFetchCourses() async {
   try {
-    final courses = await fetchCourses();
+    final courses = await fetchCoursesFromApi();
 
     debugPrint('HTTP GET berhasil.');
     debugPrint('Jumlah item: ${courses.length}');
@@ -48,7 +47,7 @@ Future<void> testFetchCourses() async {
   }
 }
 
-// CourseService yang sudah digunakan aplikasi tetap dipertahankan.
+// CourseService yang terintegrasi dengan pemetaan model Course.
 class CourseService {
   final CourseRepository repository;
 
@@ -57,6 +56,18 @@ class CourseService {
   });
 
   Future<List<Course>> getCourses() async {
-    return await repository.getCourses();
+    try {
+      // Mengambil data mentah dari API
+      final rawData = await fetchCoursesFromApi();
+      
+      // Mengonversi response list JSON mentah menjadi List<Course> menggunakan Course.fromJson
+      return rawData
+          .map((item) => Course.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      debugPrint('Gagal mengambil dari API, beralih ke repository lokal: $e');
+      // Fallback ke repository lokal jika jaringan bermasalah
+      return await repository.getCourses();
+    }
   }
 }

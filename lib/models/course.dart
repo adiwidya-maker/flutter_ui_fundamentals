@@ -1,14 +1,16 @@
 class Course {
+  final int? id;
   final String code;
   final String title;
   final int credits;
   final String status;
 
   const Course({
+    this.id,
     required this.code,
     required this.title,
     required this.credits,
-    required this.status,
+    this.status = 'planned',
   });
 
   factory Course.fromJson(Map<String, dynamic> json) {
@@ -24,15 +26,17 @@ class Course {
     }
 
     return Course(
-      code: (json['code'] ?? '').toString(),
+      id: json['id'] as int?,
+      code: (json['code'] ?? json['userId']?.toString() ?? '').toString(),
       title: (json['title'] ?? 'Materi').toString(),
-      credits: parsedCredits,
-      status: (json['status'] ?? 'not_started').toString(),
+      credits: parsedCredits > 0 ? parsedCredits : 2,
+      status: (json['status'] ?? 'planned').toString(),
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
+      if (id != null) 'id': id,
       'code': code,
       'title': title,
       'credits': credits,
