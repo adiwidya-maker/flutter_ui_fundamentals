@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/course.dart';
+import 'course_data_source.dart';
 
-class CourseApiService {
+class CourseApiService implements CourseDataSource {
   // Constructor meminta baseUrl saat class dipanggil
   CourseApiService(this.baseUrl);
 
@@ -11,6 +12,7 @@ class CourseApiService {
   // ---------------------------------------------------------------
   // GET /courses  (Tahap 4-5)
   // ---------------------------------------------------------------
+  @override
   Future<List<Course>> getCourses() async {
     final http.Response response;
 
@@ -51,6 +53,7 @@ class CourseApiService {
   // ---------------------------------------------------------------
   // POST /courses  (Tahap 6)
   // ---------------------------------------------------------------
+  @override
   Future<Course> createCourse(Course course) async {
     final http.Response response;
 
@@ -88,6 +91,7 @@ class CourseApiService {
   // ---------------------------------------------------------------
   // PUT /courses/{id}  (Tahap 7)
   // ---------------------------------------------------------------
+  @override
   Future<void> updateCourse(int id, Course course) async {
     final http.Response response;
 
@@ -116,6 +120,7 @@ class CourseApiService {
   // ---------------------------------------------------------------
   // DELETE /courses/{id}  (Tahap 8)
   // ---------------------------------------------------------------
+  @override
   Future<void> deleteCourse(int id) async {
     final http.Response response;
 

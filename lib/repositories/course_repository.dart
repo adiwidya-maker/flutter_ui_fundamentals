@@ -1,52 +1,18 @@
-
-import 'dart:convert';
-
-import 'package:flutter/services.dart';
-
 import '../models/course.dart';
+import '../services/course_data_source.dart';
 
-abstract class CourseRepository {
-  Future<List<Course>> getCourses();
-}
+class CourseRepository {
+  CourseRepository(this.dataSource);
 
-class AssetCourseRepository implements CourseRepository {
-  final String assetPath;
+  final CourseDataSource dataSource;
 
-  const AssetCourseRepository({
-    this.assetPath = 'assets/data/student_data.json',
-  });
+  Future<List<Course>> getCourses() => dataSource.getCourses();
 
-  @override
-  Future<List<Course>> getCourses() async {
-    final String jsonString =
-        await rootBundle.loadString(assetPath);
+  Future<Course> createCourse(Course course) =>
+      dataSource.createCourse(course);
 
-    final dynamic decoded = jsonDecode(jsonString);
+  Future<void> updateCourse(int id, Course course) =>
+      dataSource.updateCourse(id, course);
 
-    if (decoded is! Map) {
-      throw const FormatException(
-        'Format JSON harus berupa objek.',
-      );
-    }
-
-    final dynamic rawCourses = decoded['courses'];
-
-    if (rawCourses is! List) {
-      throw const FormatException(
-        'Properti courses tidak ditemukan dalam JSON.',
-      );
-    }
-
-    return rawCourses.map((item) {
-      if (item is! Map) {
-        throw const FormatException(
-          'Data kursus harus berupa objek JSON.',
-        );
-      }
-
-      return Course.fromJson(
-        Map<String, dynamic>.from(item),
-      );
-    }).toList();
-  }
+  Future<void> deleteCourse(int id) => dataSource.deleteCourse(id);
 }

@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../models/course.dart';
-import '../services/course_api_service.dart';
+import '../repositories/course_repository.dart';
 
 enum CourseLoadStatus {
   initial,
@@ -10,11 +10,9 @@ enum CourseLoadStatus {
 }
 
 class CourseProvider extends ChangeNotifier {
-  final CourseApiService service;
+  final CourseRepository _repository;
 
-  CourseProvider({
-    required this.service,
-  });
+  CourseProvider(this._repository);
 
   CourseLoadStatus _status = CourseLoadStatus.initial;
   List<Course> _courses = <Course>[];
@@ -38,7 +36,7 @@ class CourseProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final List<Course> result = await service.getCourses();
+      final List<Course> result = await _repository.getCourses();
       _courses = result;
       _status = CourseLoadStatus.success;
     } catch (e) {
@@ -69,7 +67,7 @@ class CourseProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await service.createCourse(course);
+      await _repository.createCourse(course);
     } catch (e) {
       _saveError = e.toString().replaceFirst('Exception: ', '');
       _isSaving = false;
@@ -99,7 +97,7 @@ class CourseProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await service.updateCourse(id, course);
+      await _repository.updateCourse(id, course);
     } catch (e) {
       _saveError = e.toString().replaceFirst('Exception: ', '');
       _isSaving = false;
@@ -137,7 +135,7 @@ class CourseProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await service.deleteCourse(id);
+      await _repository.deleteCourse(id);
     } catch (e) {
       _saveError = e.toString().replaceFirst('Exception: ', '');
       _isDeleting = false;
