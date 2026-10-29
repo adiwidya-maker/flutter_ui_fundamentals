@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'config/app_constants.dart';
 import 'config/supabase_config.dart';
 import 'providers/course_provider.dart';
 import 'repositories/course_repository.dart';
-import 'services/course_supabase_service.dart';
+import 'screens/responsive_shell.dart';
 import 'services/course_data_source.dart';
-import 'screens/home_page.dart';
+import 'services/course_supabase_service.dart';
 
-const Color primaryColor = Color(0xFF2563EB);
 const Color pageColor = Color(0xFFF5F7FB);
 
-// Tidak dipakai lagi pada Tahap 12 (data source berpindah ke Supabase).
-// Dibiarkan agar mudah kembali ke REST bila diperlukan.
+// Dipakai bila ingin kembali ke REST: CourseApiService(apiBaseUrl)
 const String apiBaseUrl = 'https://course-api-pearl.vercel.app';
 
 Future<void> main() async {
@@ -23,7 +22,7 @@ Future<void> main() async {
     anonKey: supabaseAnonKey,
   );
 
-  // Tahap 12: hanya baris ini yang berubah (REST -> Supabase)
+  // Data source aktif: Supabase (satu-satunya baris yang berubah REST <-> Supabase)
   final CourseDataSource dataSource = CourseSupabaseService();
   final repository = CourseRepository(dataSource);
 
@@ -51,7 +50,7 @@ class MyApp extends StatelessWidget {
         ),
         scaffoldBackgroundColor: pageColor,
       ),
-      home: const CourseExplorerPage(),
+      home: const ResponsiveShell(),
     );
   }
 }
