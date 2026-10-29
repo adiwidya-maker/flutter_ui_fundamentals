@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';   // BARU
+import 'config/supabase_config.dart';                      // BARU
 import 'providers/course_provider.dart';
 import 'repositories/course_repository.dart';
 import 'services/course_api_service.dart';
@@ -12,8 +14,14 @@ const Color pageColor = Color(0xFFF5F7FB);
 // Base URL API (tanpa /courses). Untuk simulasi error, ubah sementara.
 const String apiBaseUrl = 'https://course-api-pearl.vercel.app';
 
-void main() {
+Future<void> main() async {                                // DIUBAH: async
   WidgetsFlutterBinding.ensureInitialized();
+
+  // BARU: inisialisasi Supabase sebelum runApp()
+  await Supabase.initialize(
+    url: supabaseUrl,
+    anonKey: supabaseAnonKey,
+  );
 
   // Merakit service -> repository. Hanya baris dataSource ini yang
   // berubah ketika sumber data diganti (REST <-> Supabase).
