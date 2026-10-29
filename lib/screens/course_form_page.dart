@@ -4,8 +4,11 @@ import '../models/course.dart';
 import '../providers/course_provider.dart';
 import 'home_page.dart' show studentName, studentId;
 
+/// Form untuk Tambah (course == null) dan Edit (course != null).
 class CourseFormPage extends StatefulWidget {
-  const CourseFormPage({super.key});
+  const CourseFormPage({super.key, this.course});
+
+  final Course? course;
 
   @override
   State<CourseFormPage> createState() => _CourseFormPageState();
@@ -13,12 +16,32 @@ class CourseFormPage extends StatefulWidget {
 
 class _CourseFormPageState extends State<CourseFormPage> {
   final _formKey = GlobalKey<FormState>();
-  final _codeController = TextEditingController();
-  final _titleController = TextEditingController();
-  final _creditsController = TextEditingController();
+  late final TextEditingController _codeController;
+  late final TextEditingController _titleController;
+  late final TextEditingController _creditsController;
 
-  static const List<String> _statusOptions = ['planned', 'active', 'done'];
-  String _status = 'planned';
+  static const List<String> _defaultStatuses = ['planned', 'active', 'done'];
+  late List<String> _statusOptions;
+  late String _status;
+
+  bool get _isEdit => widget.course != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final c = widget.course;
+    _codeController = TextEditingController(text: c?.code ?? '');
+    _titleController = TextEditingController(text: c?.title ?? '');
+    _creditsController =
+        TextEditingController(text: c != null ? c.credits.toString() : '');
+
+    _status = c?.status ?? 'planned';
+    // Jaga-jaga jika status dari server di luar tiga pilihan standar
+    _statusOptions = [..._defaultStatuses];
+    if (!_statusOptions.contains(_status)) {
+      _statusOptions.add(_status);
+    }
+  }
 
   @override
   void dispose() {
@@ -34,20 +57,39 @@ class _CourseFormPageState extends State<CourseFormPage> {
     final provider = context.read<CourseProvider>();
 
     final course = Course(
+      id: widget.course?.id,
       code: _codeController.text.trim(),
       title: _titleController.text.trim(),
       credits: int.parse(_creditsController.text.trim()),
       status: _status,
     );
 
-    final success = await provider.createCourse(course);
+    final bool success;
+    if (_isEdit) {
+      final id = widget.course!.id;
+      if (id == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Course ini tidak memiliki id')),
+        );
+        return;
+      }
+      success = await provider.updateCourse(id, course);
+    } else {
+      success = await provider.createCourse(course);
+    }
 
     // Wajib dicek setelah await sebelum memakai context
     if (!context.mounted) return;
 
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Course berhasil ditambahkan')),
+        SnackBar(
+          content: Text(
+            _isEdit
+                ? 'Course berhasil diperbarui'
+                : 'Course berhasil ditambahkan',
+          ),
+        ),
       );
       Navigator.pop(context);
     } else {
@@ -64,7 +106,9 @@ class _CourseFormPageState extends State<CourseFormPage> {
     final isSaving = context.watch<CourseProvider>().isSaving;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Tambah Course')),
+      appBar: AppBar(
+        title: Text(_isEdit ? 'Edit Course' : 'Tambah Course'),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Form(
@@ -74,11 +118,17 @@ class _CourseFormPageState extends State<CourseFormPage> {
             children: [
               TextFormField(
                 controller: _codeController,
+                // Saat edit: read-only karena code dipakai sebagai kunci favorites
+                readOnly: _isEdit,
                 enabled: !isSaving,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Kode Course',
                   hintText: 'contoh: MOB07',
-                  border: OutlineInputBorder(),
+                  helperText: _isEdit
+                      ? 'Kode tidak dapat diubah (kunci favorites)'
+                      : null,
+                  border: const OutlineInputBorder(),
+                  filled: _isEdit,
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
@@ -152,7 +202,11 @@ class _CourseFormPageState extends State<CourseFormPage> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.save),
-                label: Text(isSaving ? 'Menyimpan...' : 'Simpan'),
+                label: Text(
+                  isSaving
+                      ? 'Menyimpan...'
+                      : (_isEdit ? 'Simpan Perubahan' : 'Simpan'),
+                ),
               ),
               const SizedBox(height: 24),
               const Center(

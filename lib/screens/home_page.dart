@@ -22,6 +22,54 @@ class CourseExplorerPage extends StatefulWidget {
 class _CourseExplorerPageState extends State<CourseExplorerPage> {
   int selectedIndex = 0;
 
+  // Tahap 7: bottom sheet detail singkat + tombol Edit
+  void _showCourseActions(Course course) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                course.title,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${course.code} • ${course.credits} SKS • ${course.status}',
+                style: const TextStyle(color: mutedColor),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () {
+                    Navigator.pop(sheetContext);
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => CourseFormPage(course: course),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.edit),
+                  label: const Text('Edit'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   // Scaffold sederhana untuk state loading / error / empty.
   // Nama & NIM tetap tampil agar valid sebagai bukti screenshot.
   Widget _stateScaffold(Widget child) {
@@ -225,7 +273,7 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                   onFavoriteChanged: () {
                     courseProvider.toggleFavorite(course.code);
                   },
-                  onTap: () {},
+                  onTap: () => _showCourseActions(course),
                   onLongPress: () {},
                 ),
               );
@@ -309,7 +357,7 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                           onFavoriteChanged: () {
                             courseProvider.toggleFavorite(course.code);
                           },
-                          onTap: () {},
+                          onTap: () => _showCourseActions(course),
                           onLongPress: () {},
                         ),
                       );

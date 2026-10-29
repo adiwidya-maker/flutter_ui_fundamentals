@@ -84,4 +84,32 @@ class CourseApiService {
 
     throw Exception('Gagal membuat course. Status: ${response.statusCode}');
   }
+
+  // ---------------------------------------------------------------
+  // PUT /courses/{id}  (Tahap 7)
+  // ---------------------------------------------------------------
+  Future<void> updateCourse(int id, Course course) async {
+    final http.Response response;
+
+    try {
+      response = await http
+          .put(
+            Uri.parse('$baseUrl/courses/$id'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(course.toJson()),
+          )
+          .timeout(const Duration(seconds: 10));
+    } catch (_) {
+      throw Exception(
+        'Tidak dapat terhubung ke server. '
+        'Periksa koneksi internet atau URL endpoint.',
+      );
+    }
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        'Gagal memperbarui course. Status: ${response.statusCode}',
+      );
+    }
+  }
 }

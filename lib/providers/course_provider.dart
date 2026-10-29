@@ -85,6 +85,35 @@ class CourseProvider extends ChangeNotifier {
     return true;
   }
 
+  // ---------------------------------------------------------------
+  // Tahap 7: UPDATE (PUT)
+  // ---------------------------------------------------------------
+  /// Memperbarui course berdasarkan [id]. Mengembalikan true jika berhasil.
+  /// Favorites memakai code sebagai kunci dan code tidak berubah,
+  /// sehingga status favorit tetap konsisten setelah refresh.
+  Future<bool> updateCourse(int id, Course course) async {
+    if (_isSaving) return false; // guard submit ganda
+
+    _isSaving = true;
+    _saveError = null;
+    notifyListeners();
+
+    try {
+      await service.updateCourse(id, course);
+    } catch (e) {
+      _saveError = e.toString().replaceFirst('Exception: ', '');
+      _isSaving = false;
+      notifyListeners();
+      return false;
+    }
+
+    await loadCourses();
+
+    _isSaving = false;
+    notifyListeners();
+    return true;
+  }
+
   // Shared State untuk Favorites
   final Set<String> _favorites = <String>{};
 
