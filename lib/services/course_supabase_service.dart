@@ -5,6 +5,15 @@ import 'course_data_source.dart';
 class CourseSupabaseService implements CourseDataSource {
   final SupabaseClient supabase = Supabase.instance.client;
 
+  // id dan created_at dibuat oleh database (identity GENERATED ALWAYS),
+  // jadi tidak boleh ikut dikirim saat INSERT/UPDATE.
+  Map<String, dynamic> _payload(Course course) {
+    final json = course.toJson();
+    json.remove('id');
+    json.remove('created_at');
+    return json;
+  }
+
   // Tahap 12: SELECT dari tabel courses
   @override
   Future<List<Course>> getCourses() async {
@@ -20,19 +29,21 @@ class CourseSupabaseService implements CourseDataSource {
   Future<Course> createCourse(Course course) async {
     final row = await supabase
         .from('courses')
-        .insert(course.toJson())
+        .insert(_payload(course))
         .select()
         .single();
 
     return Course.fromJson(row);
   }
 
-  // Sementara, agar kelas tetap dapat dikompilasi.
-  // Akan dikerjakan pada Tahap 14-15.
+  // Tahap 14: UPDATE berdasarkan id
   @override
-  Future<void> updateCourse(int id, Course course) =>
-      throw UnimplementedError();
+  Future<void> updateCourse(int id, Course course) async {
+    await supabase.from('courses').update(_payload(course)).eq('id', id);
+  }
 
+  // Sementara, agar kelas tetap dapat dikompilasi.
+  // Akan dikerjakan pada Tahap 15.
   @override
   Future<void> deleteCourse(int id) => throw UnimplementedError();
 }
