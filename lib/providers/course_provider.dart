@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../models/course.dart';
-import '../services/course_service.dart';
+import '../services/course_api_service.dart';
 
 enum CourseLoadStatus {
   initial,
@@ -10,7 +10,8 @@ enum CourseLoadStatus {
 }
 
 class CourseProvider extends ChangeNotifier {
-  final CourseService service;
+  // SUDAH DIUBAH: Menggunakan CourseApiService yang baru
+  final CourseApiService service;
 
   CourseProvider({
     required this.service,

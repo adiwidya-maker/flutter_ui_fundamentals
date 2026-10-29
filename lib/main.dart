@@ -3,9 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'providers/course_provider.dart';
-import 'services/course_service.dart';
+import 'services/course_api_service.dart';
 import 'screens/home_page.dart';
-import 'repositories/course_repository.dart';
 
 const String studentName = 'I Gede Adiwidya Utama';
 const String studentId = '2415051001';
@@ -53,9 +52,11 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider<CourseProvider>(
           create: (_) {
+            // ---> BAGIAN YANG DIGANTI UNTUK TAHAP 4 <---
+            // Menggunakan CourseApiService dengan URL MockBolt
             final provider = CourseProvider(
-              service: CourseService(
-                repository: const AssetCourseRepository(),
+              service: CourseApiService(
+                'https://mockbolt.com/b/e67eddee-9e3d-44c3-ae85-0c565de24048',
               ),
             );
             provider.loadCourses();

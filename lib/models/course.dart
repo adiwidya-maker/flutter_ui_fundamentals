@@ -27,9 +27,9 @@ class Course {
 
     return Course(
       id: json['id'] as int?,
-      code: (json['code'] ?? json['userId']?.toString() ?? '').toString(),
+      code: (json['code'] ?? '').toString(),
       title: (json['title'] ?? 'Materi').toString(),
-      credits: parsedCredits > 0 ? parsedCredits : 2,
+      credits: parsedCredits,
       status: (json['status'] ?? 'planned').toString(),
     );
   }
