@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/course.dart';
 import '../providers/course_provider.dart';
 import '../widgets/course_card.dart';
+import '../widgets/error_view.dart';
 
 const String studentName = 'I Gede Adiwidya Utama';
 const String studentId = '2415051001';
@@ -20,39 +21,70 @@ class CourseExplorerPage extends StatefulWidget {
 class _CourseExplorerPageState extends State<CourseExplorerPage> {
   int selectedIndex = 0;
 
-  @override
-  void initState() {
-    super.initState();
-
-    //testFetchCourses();
+  // Scaffold sederhana untuk state loading / error / empty.
+  // Nama & NIM tetap tampil agar valid sebagai bukti screenshot.
+  Widget _stateScaffold(Widget child) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Course Explorer v2')),
+      body: Column(
+        children: [
+          Expanded(child: child),
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text(
+              '$studentName • $studentId',
+              style: TextStyle(color: mutedColor),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final courseProvider = context.watch<CourseProvider>();
 
-    if (courseProvider.status == CourseLoadStatus.loading ||
-        courseProvider.status == CourseLoadStatus.initial) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
+    // 1. LOADING -> progress indicator
+    if (courseProvider.isLoading) {
+      return _stateScaffold(
+        const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // 2. ERROR -> pesan + tombol Retry
+    if (courseProvider.error != null) {
+      return _stateScaffold(
+        ErrorView(
+          message: courseProvider.error!,
+          onRetry: courseProvider.loadCourses,
         ),
       );
     }
 
-    if (courseProvider.status == CourseLoadStatus.error) {
-      return Scaffold(
-        body: Center(
-          child: Text('Gagal memuat data: ${courseProvider.errorMessage}'),
-        ),
+    // 3. EMPTY -> pesan data belum tersedia
+    if (courseProvider.courses.isEmpty) {
+      return _stateScaffold(
+        const Center(child: Text('Data course belum tersedia')),
       );
     }
 
+    // 4. SUCCESS
     final courses = courseProvider.courses;
+    final favoriteCourses = courses
+        .where((course) => courseProvider.isFavorite(course.code))
+        .toList();
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Course Explorer v2'),
+        actions: [
+          IconButton(
+            tooltip: 'Refresh',
+            icon: const Icon(Icons.refresh),
+            onPressed: courseProvider.loadCourses,
+          ),
+        ],
       ),
       body: IndexedStack(
         index: selectedIndex,
@@ -88,20 +120,20 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                             ),
                           ),
                           const SizedBox(width: 16),
-                          Expanded(
+                          const Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
                                   'Halo, $studentName!',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 20,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.white,
                                   ),
                                 ),
-                                const SizedBox(height: 6),
-                                const Text(
+                                SizedBox(height: 6),
+                                Text(
                                   'Selamat datang di dashboard pembelajaranmu.',
                                   style: TextStyle(color: Color(0xFFE0E7FF)),
                                 ),
@@ -122,9 +154,9 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                               color: Colors.white.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: Text(
+                            child: const Text(
                               'NIM : $studentId',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -212,10 +244,10 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                Center(
+                const Center(
                   child: Text(
                     studentName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: textColor,
@@ -225,7 +257,7 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                 const SizedBox(height: 4),
                 const Center(
                   child: Text(
-                    'NIM: 2415051001 • Semester 5',
+                    'NIM: $studentId • Semester 5',
                     style: TextStyle(color: mutedColor),
                   ),
                 ),
@@ -245,13 +277,13 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                       ),
                     ),
                     Chip(
-                      label: Text('${courseProvider.favoriteCount} Disukai'),
+                      label: Text('${favoriteCourses.length} Disukai'),
                       backgroundColor: const Color(0xFFEAF2FF),
                     ),
                   ],
                 ),
                 const SizedBox(height: 12),
-                if (courseProvider.favoriteCount == 0)
+                if (favoriteCourses.isEmpty)
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 32),
                     child: Center(
@@ -265,12 +297,9 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                   ListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    itemCount: courses.length,
+                    itemCount: favoriteCourses.length,
                     itemBuilder: (context, index) {
-                      final course = courses[index];
-                      if (!courseProvider.isFavorite(course.code)) {
-                        return const SizedBox.shrink();
-                      }
+                      final course = favoriteCourses[index];
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 10),
                         child: CourseListTileWidget(

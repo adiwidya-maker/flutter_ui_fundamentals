@@ -9,17 +9,29 @@ class CourseApiService {
   final String baseUrl;
 
   Future<List<Course>> getCourses() async {
-    // Memanggil endpoint API
-    final response = await http.get(Uri.parse(baseUrl));
+    final http.Response response;
 
-    // Mengecek status HTTP
+    try {
+      // Tambahkan /courses di belakang baseUrl
+      response = await http
+          .get(Uri.parse('$baseUrl/courses'))
+          .timeout(const Duration(seconds: 10));
+    } catch (_) {
+      throw Exception(
+        'Tidak dapat terhubung ke server. '
+        'Periksa koneksi internet atau URL endpoint.',
+      );
+    }
+
     if (response.statusCode != 200) {
-      throw Exception('Gagal mengambil course. Status: ${response.statusCode}');
+      throw Exception(
+        'Gagal mengambil course. Status: ${response.statusCode}',
+      );
     }
 
     // Memparsing JSON
     final dynamic decodedData = jsonDecode(response.body);
-    List<dynamic> data;
+    final List<dynamic> data;
 
     // Menangani format array (List) atau objek tunggal (Map) dari MockBolt
     if (decodedData is List) {

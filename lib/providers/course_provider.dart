@@ -10,7 +10,6 @@ enum CourseLoadStatus {
 }
 
 class CourseProvider extends ChangeNotifier {
-  // SUDAH DIUBAH: Menggunakan CourseApiService yang baru
   final CourseApiService service;
 
   CourseProvider({
@@ -19,27 +18,31 @@ class CourseProvider extends ChangeNotifier {
 
   CourseLoadStatus _status = CourseLoadStatus.initial;
   List<Course> _courses = <Course>[];
-  String? _errorMessage;
+  String? _error;
 
   CourseLoadStatus get status => _status;
   List<Course> get courses => List<Course>.unmodifiable(_courses);
-  String? get errorMessage => _errorMessage;
 
-  bool get isLoading => _status == CourseLoadStatus.loading;
+  // Nama field sesuai worksheet: courses, isLoading, error
+  String? get error => _error;
+
+  bool get isLoading =>
+      _status == CourseLoadStatus.loading ||
+      _status == CourseLoadStatus.initial;
   bool get hasError => _status == CourseLoadStatus.error;
   bool get hasData => _status == CourseLoadStatus.success;
 
   Future<void> loadCourses() async {
     _status = CourseLoadStatus.loading;
-    _errorMessage = null;
+    _error = null;
     notifyListeners();
 
     try {
       final List<Course> result = await service.getCourses();
       _courses = result;
       _status = CourseLoadStatus.success;
-    } catch (error) {
-      _errorMessage = error.toString();
+    } catch (e) {
+      _error = e.toString().replaceFirst('Exception: ', '');
       _status = CourseLoadStatus.error;
     }
 
