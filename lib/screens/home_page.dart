@@ -4,6 +4,7 @@ import '../models/course.dart';
 import '../providers/course_provider.dart';
 import '../widgets/course_card.dart';
 import '../widgets/error_view.dart';
+import 'course_form_page.dart';
 
 const String studentName = 'I Gede Adiwidya Utama';
 const String studentId = '2415051001';
@@ -318,6 +319,15 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
             ),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const CourseFormPage()),
+          );
+        },
+        icon: const Icon(Icons.add),
+        label: const Text('Tambah'),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: selectedIndex,

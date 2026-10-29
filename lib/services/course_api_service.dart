@@ -8,11 +8,13 @@ class CourseApiService {
 
   final String baseUrl;
 
+  // ---------------------------------------------------------------
+  // GET /courses  (Tahap 4-5)
+  // ---------------------------------------------------------------
   Future<List<Course>> getCourses() async {
     final http.Response response;
 
     try {
-      // Tambahkan /courses di belakang baseUrl
       response = await http
           .get(Uri.parse('$baseUrl/courses'))
           .timeout(const Duration(seconds: 10));
@@ -29,7 +31,6 @@ class CourseApiService {
       );
     }
 
-    // Memparsing JSON
     final dynamic decodedData = jsonDecode(response.body);
     final List<dynamic> data;
 
@@ -42,9 +43,45 @@ class CourseApiService {
       throw const FormatException('Format response JSON tidak valid.');
     }
 
-    // Mapping JSON ke model Course
     return data
         .map((e) => Course.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  // ---------------------------------------------------------------
+  // POST /courses  (Tahap 6)
+  // ---------------------------------------------------------------
+  Future<Course> createCourse(Course course) async {
+    final http.Response response;
+
+    try {
+      response = await http
+          .post(
+            Uri.parse('$baseUrl/courses'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(course.toJson()),
+          )
+          .timeout(const Duration(seconds: 10));
+    } catch (_) {
+      throw Exception(
+        'Tidak dapat terhubung ke server. '
+        'Periksa koneksi internet atau URL endpoint.',
+      );
+    }
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      // Server biasanya mengembalikan resource baru (lengkap dengan id).
+      // Jika body kosong / bentuknya berbeda, pakai data yang dikirim
+      // supaya proses simpan yang sudah berhasil tidak dianggap gagal.
+      try {
+        return Course.fromJson(
+          jsonDecode(response.body) as Map<String, dynamic>,
+        );
+      } catch (_) {
+        return course;
+      }
+    }
+
+    throw Exception('Gagal membuat course. Status: ${response.statusCode}');
   }
 }

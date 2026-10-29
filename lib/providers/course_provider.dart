@@ -49,6 +49,42 @@ class CourseProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ---------------------------------------------------------------
+  // Tahap 6: CREATE (POST)
+  // ---------------------------------------------------------------
+  bool _isSaving = false;
+  String? _saveError;
+
+  bool get isSaving => _isSaving;
+  String? get saveError => _saveError;
+
+  /// Mengirim course baru. Mengembalikan true jika berhasil.
+  /// Error penyimpanan disimpan di [saveError] (terpisah dari [error]
+  /// supaya halaman list tidak berubah menjadi layar error).
+  Future<bool> createCourse(Course course) async {
+    if (_isSaving) return false; // guard submit ganda
+
+    _isSaving = true;
+    _saveError = null;
+    notifyListeners();
+
+    try {
+      await service.createCourse(course);
+    } catch (e) {
+      _saveError = e.toString().replaceFirst('Exception: ', '');
+      _isSaving = false;
+      notifyListeners();
+      return false;
+    }
+
+    // Refresh list: isi list diganti dari server, bukan ditambah manual
+    await loadCourses();
+
+    _isSaving = false;
+    notifyListeners();
+    return true;
+  }
+
   // Shared State untuk Favorites
   final Set<String> _favorites = <String>{};
 
