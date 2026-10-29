@@ -63,6 +63,21 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
                   label: const Text('Edit'),
                 ),
               ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Theme.of(context).colorScheme.error,
+                  ),
+                  onPressed: () {
+                    Navigator.pop(sheetContext);
+                    _confirmDelete(course);
+                  },
+                  icon: const Icon(Icons.delete_outline),
+                  label: const Text('Delete'),
+                ),
+              ),
             ],
           ),
         );
@@ -70,11 +85,71 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
     );
   }
 
+  Widget _addButton() {
+    return FloatingActionButton.extended(
+      onPressed: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const CourseFormPage()),
+        );
+      },
+      icon: const Icon(Icons.add),
+      label: const Text('Tambah'),
+    );
+  }
+
+  // Tahap 8: dialog konfirmasi -> DELETE -> refresh + SnackBar
+  Future<void> _confirmDelete(Course course) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Hapus course?'),
+        content: Text(
+          'Course "${course.title}" (${course.code}) akan dihapus. '
+          'Tindakan ini tidak dapat dibatalkan.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(dialogContext).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    // Wajib dicek setelah await dialog sebelum memakai context
+    if (!mounted) return;
+
+    final provider = context.read<CourseProvider>();
+    final success = await provider.deleteCourse(course);
+
+    // Wajib dicek lagi setelah await DELETE
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Course berhasil dihapus'
+              : (provider.saveError ?? 'Gagal menghapus course'),
+        ),
+      ),
+    );
+  }
+
   // Scaffold sederhana untuk state loading / error / empty.
   // Nama & NIM tetap tampil agar valid sebagai bukti screenshot.
-  Widget _stateScaffold(Widget child) {
+  Widget _stateScaffold(Widget child, {Widget? floatingActionButton}) {
     return Scaffold(
       appBar: AppBar(title: const Text('Course Explorer v2')),
+      floatingActionButton: floatingActionButton,
       body: Column(
         children: [
           Expanded(child: child),
@@ -115,6 +190,7 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
     if (courseProvider.courses.isEmpty) {
       return _stateScaffold(
         const Center(child: Text('Data course belum tersedia')),
+        floatingActionButton: _addButton(),
       );
     }
 
@@ -368,15 +444,7 @@ class _CourseExplorerPageState extends State<CourseExplorerPage> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const CourseFormPage()),
-          );
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('Tambah'),
-      ),
+      floatingActionButton: _addButton(),
       bottomNavigationBar: NavigationBar(
         selectedIndex: selectedIndex,
         onDestinationSelected: (index) {

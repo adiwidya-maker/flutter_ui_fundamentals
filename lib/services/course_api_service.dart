@@ -112,4 +112,29 @@ class CourseApiService {
       );
     }
   }
+
+  // ---------------------------------------------------------------
+  // DELETE /courses/{id}  (Tahap 8)
+  // ---------------------------------------------------------------
+  Future<void> deleteCourse(int id) async {
+    final http.Response response;
+
+    try {
+      response = await http
+          .delete(Uri.parse('$baseUrl/courses/$id'))
+          .timeout(const Duration(seconds: 10));
+    } catch (_) {
+      throw Exception(
+        'Tidak dapat terhubung ke server. '
+        'Periksa koneksi internet atau URL endpoint.',
+      );
+    }
+
+    // 204 No Content termasuk rentang 2xx
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        'Gagal menghapus course. Status: ${response.statusCode}',
+      );
+    }
+  }
 }

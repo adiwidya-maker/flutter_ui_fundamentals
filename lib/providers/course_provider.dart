@@ -114,6 +114,47 @@ class CourseProvider extends ChangeNotifier {
     return true;
   }
 
+  // ---------------------------------------------------------------
+  // Tahap 8: DELETE
+  // ---------------------------------------------------------------
+  bool _isDeleting = false;
+  bool get isDeleting => _isDeleting;
+
+  /// Menghapus course. Jika course ada di favorites, ikut dihapus dari
+  /// favorites agar tidak tersisa data yatim. Mengembalikan true jika berhasil.
+  Future<bool> deleteCourse(Course course) async {
+    if (_isDeleting) return false;
+
+    final id = course.id;
+    if (id == null) {
+      _saveError = 'Course ini tidak memiliki id';
+      notifyListeners();
+      return false;
+    }
+
+    _isDeleting = true;
+    _saveError = null;
+    notifyListeners();
+
+    try {
+      await service.deleteCourse(id);
+    } catch (e) {
+      _saveError = e.toString().replaceFirst('Exception: ', '');
+      _isDeleting = false;
+      notifyListeners();
+      return false;
+    }
+
+    // Bersihkan dari favorites (kunci favorites = code)
+    _favorites.remove(course.code);
+
+    await loadCourses();
+
+    _isDeleting = false;
+    notifyListeners();
+    return true;
+  }
+
   // Shared State untuk Favorites
   final Set<String> _favorites = <String>{};
 
